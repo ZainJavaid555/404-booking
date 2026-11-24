@@ -253,7 +253,7 @@ function builder(){
     for (let h = 1; h <= 6; h++) {
       const end = s.start + h * H, ok = h <= maxH;
       if (!ok && end > dayEnd) break;
-      opts.push(`<button class="opt glass ${ok && s.hours === h ? 'sel' : ''}" style="min-height:70px" ${ok ? '' : 'disabled'} data-a="hrs2" data-v="${h}">
+      opts.push(`<button class="opt glass ${ok && s.hours === h ? 'sel' : ''}" style="min-height:70px;padding-right:50px" ${ok ? '' : 'disabled'} data-a="hrs2" data-v="${h}">
         <div class="t">${h} hour${h > 1 ? 's' : ''} <span class="mono" style="float:right">${ok ? rs(h * (S.info.rate + Math.max(0, s.players - 2) * S.info.extra)) : ''}</span></div>
         <div class="s">${ok ? hl(s.start) + ' – ' + hl(end) : 'Not free: ' + hl(end - H) + ' is already booked'}</div></button>`);
       if (!ok) break;

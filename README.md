@@ -25,6 +25,7 @@ the live repos on purpose.
 | `admin/` | Session manager (copy of `admin404`, 24 Nov 2026), with game cover images |
 | `snacks/` | Snacks counter app (copy of `snacks`, 24 Nov 2026) |
 | `database/full_schema.sql` | Full structure of the live database (no data), exported 24 Nov 2026 |
+| `database/half_hours.sql` | Lets a session hold half hours (30-minute add-ons) |
 | `database/booking_tables.sql` | DRAFT: machines, bookings and payment proofs for the booking system |
 | `database/*.sql` (other) | The original snacks SQL files from the source repo |
 
@@ -32,5 +33,6 @@ the live repos on purpose.
 
 - Snacks product photos (`snacks/products/`), which are missing from the source repo
 - Test logins (an owner and a staff user) in the `404-test` project
+- Payments queue: show the transaction ID and the payer's name; when the screenshot shows only an amount, ask the customer for the name or transaction ID
 - Walk-in and manual bookings, starting a session from a booking, cancellations
 - Merging Sessions and Snacks into the main page properly (today they are shown inside it)

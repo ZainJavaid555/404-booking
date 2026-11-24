@@ -6147,12 +6147,12 @@ function buildSessionCard(s) {
   const MAX_PLAYERS = 8;
   if ((s.platform || 'ps5') === 'pc') apRow.hidden = true;        // PC is single-player
 
-  // Greyed out at 8 players; Remove only appears once there is someone to remove.
+  // Both buttons always show. Add greys out at 8 players, Remove when only one is left.
   const syncPlayerBtns = () => {
     const n = s.players?.length || 0;
     apBtn.disabled = n >= MAX_PLAYERS;
     apBtn.textContent = n >= MAX_PLAYERS ? 'Full \u00b7 8 players' : '+ Add player';
-    rpBtn.hidden = n < 2;
+    rpBtn.disabled = n < 2;          // always shown; greyed out when there is nobody to remove
   };
   // Re-price the hour that is running now and every later one for the current
   // head-count. Hours already finished keep the price they were played at.

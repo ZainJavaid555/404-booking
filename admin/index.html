@@ -1399,6 +1399,13 @@
 
   .session-actions { display: flex; gap: 8px; position: relative; z-index: 1; }
   .session-actions .btn { flex: 1; padding: 10px 14px; font-size: 13px; }
+  .add-player-row { margin-top: 8px; position: relative; z-index: 1; }
+  .add-player-row > .btn { width: 100%; padding: 9px 14px; font-size: 13px; }
+  .add-player-form { display: flex; gap: 6px; }
+  .add-player-form[hidden] { display: none; }
+  .add-player-form input { flex: 1; min-width: 0; height: 38px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--surface-3); padding: 0 12px; font: inherit; font-size: 14px; outline: none; }
+  .add-player-form input:focus { border-color: var(--accent); }
+  .add-player-form .btn { padding: 8px 12px; font-size: 13px; }
 
   /* Add time dropdown */
   .add-time-wrap { position: relative; flex: 1; }
@@ -6103,7 +6110,46 @@ function buildSessionCard(s) {
       </div>
       <button class="btn btn-danger" data-action="end">End now</button>
     </div>
+    <div class="add-player-row" data-r="addplayer">
+      <button class="btn btn-ghost" data-action="add-player">+ Add player</button>
+      <form class="add-player-form" hidden>
+        <input type="text" maxlength="40" placeholder="Friend's name" autocomplete="off">
+        <button class="btn btn-ghost" type="submit">Add</button>
+        <button class="btn btn-ghost" type="button" data-action="cancel-player">✕</button>
+      </form>
+    </div>
   `;
+
+  // ---- Add a player to a running session (friends who join late) ----
+  // The new head-count applies from the hour that is running now onwards.
+  // Hours that have already finished stay at the price they were played at.
+  const apRow = card.querySelector('[data-r="addplayer"]');
+  const apBtn = apRow.querySelector('[data-action="add-player"]');
+  const apForm = apRow.querySelector('.add-player-form');
+  const apInput = apForm.querySelector('input');
+  if ((s.platform || 'ps5') === 'pc') apRow.hidden = true;        // PC is single-player
+  apBtn.addEventListener('click', () => { apBtn.hidden = true; apForm.hidden = false; apInput.value = ''; apInput.focus(); });
+  apForm.querySelector('[data-action="cancel-player"]').addEventListener('click', () => { apForm.hidden = true; apBtn.hidden = false; });
+  apForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = apInput.value.trim();
+    if (!name) { apInput.focus(); return; }
+    if ((s.players?.length || 0) >= 8) { showToast('8 players is the most for one session', 'warn'); return; }
+    if (!Array.isArray(s.players)) s.players = [];
+    s.players.push({ name, phone: '' });
+    const count = s.players.length, now = Date.now(), HOUR = 60 * 60 * 1000;
+    s.priceSegments = sessionPriceSegments(s).map(seg => {
+      const segEnd = Number(seg.startTime) + (Number(seg.hours) || 1) * HOUR;
+      return segEnd > now ? Object.assign({}, seg, { rate: rateFor(s.platform, count, new Date(Number(seg.startTime))) }) : seg;
+    });
+    s.hourlyRate = Number(s.priceSegments[0]?.rate) || s.hourlyRate;
+    persistNow();
+    const extraEl = card.querySelector('.player-extra');
+    if (extraEl) extraEl.textContent = '+ ' + s.players.slice(1).map(p => p.name).join(', ');
+    refreshSessionCard(card, s);
+    apForm.hidden = true; apBtn.hidden = false;
+    showToast(name + ' added \u2014 ' + count + ' players now');
+  });
 
   // Wire up Add Time dropdown
   const addWrap = card.querySelector('[data-r="addwrap"]');

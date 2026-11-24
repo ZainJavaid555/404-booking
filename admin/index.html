@@ -6070,7 +6070,8 @@ function renderMachineChoice(){
   const now = Date.now(), need = (state.settings.totalMin || 60) * 60 * 1000;
   if (sessionMachine && !list.some(m => m.id === sessionMachine)) sessionMachine = null;
   grid.innerHTML = list.map(m => {
-    const busy = machineSession(m.id), nb = machineNextBooking(m.id);
+    const busy = machineSession(m.id); let nb = machineNextBooking(m.id);
+    if (nb && nb.start_time > now + 12 * 3600000) nb = null;   // a booking far away is not worth a warning
     const bookedNow = nb && nb.start_time <= now, tooSoon = nb && !bookedNow && nb.start_time < now + need;
     const off = !!busy || bookedNow || tooSoon;
     const note = busy ? 'In use \u00b7 ' + (busy.players[0]?.name || '')
@@ -6079,7 +6080,8 @@ function renderMachineChoice(){
     if (off && sessionMachine === m.id) sessionMachine = null;
     return `<button type="button" class="machine-btn ${sessionMachine === m.id ? 'selected' : ''} ${nb && !busy ? 'soon' : ''}" data-machine="${escapeHtml(m.id)}" ${off ? 'disabled' : ''}><b>${escapeHtml(m.id)}</b><small>${escapeHtml(note)}</small></button>`;
   }).join('');
-  const sel = sessionMachine ? machineNextBooking(sessionMachine) : null;
+  let sel = sessionMachine ? machineNextBooking(sessionMachine) : null;
+  if (sel && sel.start_time > now + 12 * 3600000) sel = null;
   hint.textContent = sel ? `${sessionMachine} is booked at ${fmtClock(sel.start_time)} by ${sel.customer_name}. This session must finish before then.` : '';
 }
 document.addEventListener('click', e => {

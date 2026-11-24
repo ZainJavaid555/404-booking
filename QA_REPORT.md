@@ -11,6 +11,7 @@
 | Staff login | 17 probes against the test database while signed in as staff | Cannot approve, decline, cancel, edit or delete bookings |
 | Customer booking, start to finish | A real booking with an uploaded image on the test site | Worked (#1011) |
 | Session add time, 30 minutes, undo, add and remove player | On running test sessions | Worked |
+| Sessions and bookings linked | 17 automated checks, then on the test site: walk-in on M5, booked machines greyed out, customer timetable showed M5 as taken, booking #1007 started as a session and ended | Worked. Advance of Rs 2,400 was taken off the bill (Rs 0 to collect) and the booking closed as completed |
 
 Not tested: Approve, Decline and "Confirm received" by clicking them as an owner on the site (the owner password is not mine to type). The database functions behind them passed their checks.
 
@@ -26,7 +27,7 @@ Not tested: Approve, Decline and "Confirm received" by clicking them as an owner
 
 | # | Risk | Why it matters | What to do |
 |---|---|---|---|
-| 1 | Bookings and sessions do not know about each other | A walk-in can be started on a machine that is booked, and a booking can be taken on a machine in use. Sessions still say "PS5", not "M3" | Next build step: machine on every session, and block overlaps both ways |
+| 1 | ~~Bookings and sessions do not know about each other~~ **Fixed 25 Nov** | Every session now sits on a named machine (M1–M5, PS4, XBOX). A booked machine cannot be given to a walk-in, a machine in use cannot be booked, and a booking is started as a session with its advance already counted | Not tested live: the block on adding time into a later booking (no booking was close enough); it passed on the throwaway database |
 | 2 | The live database has no automatic backups (free plan) | All sales, sessions and stock history sit in one place | Paid plan with daily backups, or a scheduled export |
 | 3 | The live database has the opening in fix 5 | Anyone with the site's public key can read session ids and snack amounts | Run `close_public_functions.sql` on live, with the owner's approval |
 | 4 | Test owner login has a weak password on a public site | Anyone who guesses it becomes owner of the test database | Change it now; never reuse it on live |
@@ -43,4 +44,4 @@ Not tested: Approve, Decline and "Confirm received" by clicking them as an owner
 
 ## Changes that must be applied to the live database at launch
 
-`booking_tables.sql`, `half_hours.sql`, `close_public_functions.sql`. Nothing has been applied to live.
+`booking_tables.sql`, `half_hours.sql`, `close_public_functions.sql`, `link_sessions_bookings.sql`. Nothing has been applied to live.

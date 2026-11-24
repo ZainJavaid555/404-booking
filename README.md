@@ -37,5 +37,6 @@ the live repos on purpose.
 - Snacks product photos (`snacks/products/`), which are missing from the source repo
 - Test logins (an owner and a staff user) in the `404-test` project
 - Payments queue: show the transaction ID and the payer's name; when the screenshot shows only an amount, ask the customer for the name or transaction ID
-- Walk-in and manual bookings, starting a session from a booking, cancellations
+- Walk-in and manual bookings made from the Bookings tab
+- Hiding cost, profit and revenue history from staff logins; moving session pricing into the database; owner alerts when the site is closed
 - Merging Sessions and Snacks into the main page properly (today they are shown inside it)

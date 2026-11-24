@@ -108,6 +108,10 @@ h2{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;letter-spacing:-.
 .spin{width:40px;height:40px;border-radius:50%;border:3px solid rgba(15,23,42,.12);border-top-color:var(--accent);animation:sp .8s linear infinite;margin:70px auto 20px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .center{text-align:center}
+.bk{display:block;width:100%;text-align:left;border:1.5px solid var(--border);transition:border-color .15s,transform .15s}
+.bk:hover{border-color:var(--border-strong);transform:translateY(-1px)}
+.bk-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.bk-main{font-family:'Bricolage Grotesque',sans-serif;font-size:19px;font-weight:700;margin:8px 0 2px}
 .ur{display:block;font-size:13px;color:var(--text-dim);font-weight:500;margin-top:4px}
 .btn .ur{color:rgba(255,255,255,.85);font-size:12px;margin:0}
 .btn.two{flex-direction:column;gap:2px;min-height:64px}
@@ -161,7 +165,7 @@ const whenText = (start, end) => { const p = pk(start); const late = p.getUTCHou
   return WD[p.getUTCDay()] + ' ' + p.getUTCDate() + ' ' + MO[p.getUTCMonth()] + ', ' + hl(start) + ' – ' + hl(end) + late; };
 
 const S = { view:'home', step:1, machines:[], info:{rate:400,extra:100,advance_pct:50}, taken:[], busy:false, err:'',
-            sel:null, receipt:null };
+            sel:null, receipt:null, mine:[], find:{ no:'', phone:'', err:'' } };
 const fresh = () => ({ m:null, game:null, day:0, start:null, hours:1, players:2, name:'', phone:'', full:false, file:null, preview:null });
 S.sel = fresh();
 const price = () => S.sel.hours * (S.info.rate + Math.max(0, S.sel.players - 2) * S.info.extra);
@@ -188,16 +192,16 @@ async function loadTaken(){
 const app = document.getElementById('app');
 function render(){
   if (S.busy) { app.innerHTML = `<div class="wrap center"><div class="spin"></div><h2>${esc(S.busy)}</h2><p class="sub">This takes a few seconds.</p></div>`; return; }
-  app.innerHTML = S.view === 'home' ? home() : S.view === 'receipt' ? receipt() : S.view === 'grid' ? grid() : builder();
+  app.innerHTML = S.view === 'home' ? home() : S.view === 'receipt' ? receipt() : S.view === 'grid' ? grid() : S.view === 'mine' ? mine() : builder();
 }
 const head = () => `<header><div class="brand">404 <span>Gaming Zone</span></div><span class="tag">Build your own slot</span></header>`;
 function home(){
-  const saved = lastBooking();
+  const saved = savedBookings();
   return `<div class="wrap">${head()}
    <div class="hero"><h1>Build your<br>own <em>slot.</em></h1><p class="sub">Pick a machine, a game and a time. Done in one minute.</p></div>
    <button class="btn two" data-a="start"><span>Build my slot →</span><span class="ur">Apna slot book karein</span></button>
    <button class="btn ghost two" style="margin-top:10px" data-a="grid"><span>See free slots</span><span class="ur">Dekhein kaun sa time khali hai</span></button>
-   ${saved ? `<button class="btn ghost" style="margin-top:10px" data-a="mine">See my booking #${esc(saved.no)}</button>` : ''}
+   <button class="btn ghost two" style="margin-top:10px" data-a="mine"><span>My bookings${saved.length ? ' (' + saved.length + ')' : ''}</span><span class="ur">Meri bookings dekhein</span></button>
    <div class="facts"><div class="fact glass"><b>${rs(S.info.rate)}</b><span>per hour</span></div><div class="fact glass"><b>2 players</b><span>included</span></div><div class="fact glass"><b>9AM – 3AM</b><span>every day</span></div></div>
    <div class="how"><div class="glass"><span class="num">1</span><div><b>Build your slot</b><small>Machine, game, time and players.</small></div></div>
    <div class="glass"><span class="num">2</span><div><b>Pay ${S.info.advance_pct}% now</b><small>Send the advance and upload the screenshot.</small></div></div>
@@ -301,22 +305,67 @@ function receipt(){
     <div class="line"><span>Pay at counter</span><b>${rs(Math.max(0, b.total - (b.state === 'pending' ? (b.claimed || 0) : b.paid)))}</b></div></div>
    <div class="rules"><div>Your time starts at ${hl(b.start_time)}, even if you arrive late.</div><div>To cancel, tell us at least 12 hours before.</div><div>Keep your booking number. You will need it with your phone number.</div></div>
    <a class="btn ghost" style="margin-top:18px;text-decoration:none" href="https://wa.me/${CONFIG.WHATSAPP}?text=${encodeURIComponent('Booking #' + b.booking_no)}" target="_blank" rel="noopener">Message 404 on WhatsApp</a>
-   <button class="btn" style="margin-top:10px" data-a="start">Build another slot</button>
+   <button class="btn" style="margin-top:10px" data-a="mine">See all my bookings</button>
+   <button class="btn ghost" style="margin-top:10px" data-a="start">Build another slot</button>
    <p class="foot">Sami Town, Azizpull, Taj Bagh Scheme, Lahore · 0324 4099700</p></div>`;
 }
 
-/* The receipt is remembered on this phone only, so the customer can come back to it. */
-function lastBooking(){ try { return JSON.parse(localStorage.getItem('g404_booking') || 'null'); } catch(e){ return null; } }
-function rememberBooking(no, phone, claimed){ try { localStorage.setItem('g404_booking', JSON.stringify({ no, phone, claimed })); } catch(e){} }
-async function refreshReceipt(){
-  const saved = lastBooking(); if (!saved) return;
-  const { data } = await sb.rpc('gz_booking_status', { p_booking_no: saved.no, p_phone: saved.phone });
-  if (data) { const was = S.receipt && S.receipt.state; S.receipt = Object.assign({ claimed: saved.claimed }, data);
-    if (S.view === 'receipt' && was !== data.state) render(); }
+/* Bookings made on this phone are remembered here, so the customer can come
+   back to all of them. A booking made on another phone can be added with its
+   booking number and phone number. */
+function savedBookings(){
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem('g404_bookings') || '[]') || []; } catch(e){ list = []; }
+  try { const old = JSON.parse(localStorage.getItem('g404_booking') || 'null');     // the earlier single-booking memory
+        if (old && old.no && !list.some(x => x.no === old.no)) { list.push(old); localStorage.setItem('g404_bookings', JSON.stringify(list)); }
+        localStorage.removeItem('g404_booking'); } catch(e){}
+  return Array.isArray(list) ? list : [];
 }
-setInterval(() => { if (S.view === 'receipt' && S.receipt && S.receipt.state === 'pending') refreshReceipt(); }, 15000);
+function rememberBooking(no, phone, claimed){
+  const list = savedBookings().filter(x => x.no !== no); list.push({ no, phone, claimed });
+  try { localStorage.setItem('g404_bookings', JSON.stringify(list)); } catch(e){}
+}
+async function fetchBooking(x){
+  const { data } = await sb.rpc('gz_booking_status', { p_booking_no: x.no, p_phone: x.phone });
+  return data ? Object.assign({ claimed: x.claimed || 0 }, data) : null;
+}
+async function loadMine(){
+  const rows = (await Promise.all(savedBookings().map(fetchBooking))).filter(Boolean);
+  const now = Date.now();
+  /* What is coming up first (soonest on top), then what has passed (most recent on top). */
+  S.mine = rows.filter(b => b.end_time >= now).sort((a, b) => a.start_time - b.start_time)
+     .concat(rows.filter(b => b.end_time < now).sort((a, b) => b.start_time - a.start_time));
+  if (S.receipt) { const r = S.mine.find(b => b.booking_no === S.receipt.booking_no); if (r) S.receipt = r; }
+}
+function mine(){
+  const now = Date.now(), list = S.mine || [];
+  const card = b => { const shown = b.state === 'pending' ? (b.claimed || 0) : b.paid, left = Math.max(0, b.total - shown), past = b.end_time < now;
+    return `<button class="glass card bk" style="${past ? 'opacity:.65' : ''}" data-a="open" data-v="${esc(b.booking_no)}">
+      <div class="bk-top"><span class="mono" style="font-weight:700">#${esc(b.booking_no)}</span><span class="st ${esc(b.state)}">${esc(stLabel[b.state] || b.state)}</span></div>
+      <div class="bk-main">${esc(b.machine_id)} · ${esc(b.game)}</div><div class="tiny">${esc(whenText(b.start_time, b.end_time))} · ${b.players} player${b.players > 1 ? 's' : ''}</div>
+      <div class="tiny" style="margin-top:6px">${['declined','cancelled','released'].includes(b.state) ? 'Not active' : left > 0 ? 'Pay at counter: <b style="color:var(--text)">' + rs(left) + '</b>' : 'Fully paid'}</div></button>`; };
+  return `<div class="wrap">${head()}<h2>My bookings</h2><span class="ur">Aap ki tamam bookings</span>
+   <div class="opts">${list.length ? list.map(card).join('') : '<p class="sub center" style="padding:24px 0">No bookings on this phone yet.</p>'}</div>
+   <div class="lab">Booked from another phone?</div>
+   <div class="glass card"><div class="tiny">Enter the booking number and the phone number used.</div>
+    <div class="field"><input id="q-no" inputmode="numeric" placeholder="Booking number, like 1005" value="${esc(S.find.no)}"></div>
+    <div class="field"><input id="q-phone" inputmode="tel" placeholder="03XXXXXXXXX" value="${esc(S.find.phone)}"></div>
+    ${S.find.err ? `<div class="err">${esc(S.find.err)}</div>` : ''}
+    <button class="btn ghost" style="margin-top:12px" data-a="find">Find booking</button></div>
+   <button class="btn" style="margin-top:16px" data-a="start">Build a new slot →</button>
+   <button class="btn ghost" style="margin-top:10px" data-a="home">← Back</button></div>`;
+}
+setInterval(async () => {
+  if (!['receipt','mine'].includes(S.view) || S.busy) return;
+  if (!(S.mine || []).some(b => b.state === 'pending') && !(S.receipt && S.receipt.state === 'pending')) return;
+  const before = JSON.stringify((S.mine || []).map(b => b.state)) + (S.receipt ? S.receipt.state : '');
+  const typing = document.activeElement && document.activeElement.tagName === 'INPUT';
+  await loadMine();
+  if (!typing && before !== JSON.stringify((S.mine || []).map(b => b.state)) + (S.receipt ? S.receipt.state : '')) render();
+}, 15000);
 
-function keep(){ const n = document.getElementById('f-name'), p = document.getElementById('f-phone'); if (n) { S.sel.name = n.value; S.sel.phone = p.value; } }
+function keep(){ const n = document.getElementById('f-name'), p = document.getElementById('f-phone'); if (n) { S.sel.name = n.value; S.sel.phone = p.value; }
+  const q = document.getElementById('q-no'), qp = document.getElementById('q-phone'); if (q) { S.find.no = q.value; S.find.phone = qp.value; } }
 document.addEventListener('input', e => { if (e.target.id === 'f-name' || e.target.id === 'f-phone') { keep(); const go = document.getElementById('go'); if (go) go.disabled = !ready(); } });
 document.addEventListener('change', e => {
   if (e.target.id !== 'f-proof' || !e.target.files[0]) return;
@@ -350,7 +399,16 @@ document.addEventListener('click', async e => {
   const a = el.dataset.a, v = el.dataset.v, s = S.sel; keep();
   const y = window.scrollY, stay = ['day','hrs','time','pl','full'].includes(a);
   if (a === 'start') { S.sel = fresh(); S.step = 1; S.view = 'build'; S.err = ''; }
-  else if (a === 'mine') { S.busy = 'Finding your booking'; render(); await refreshReceipt(); S.busy = false; S.view = S.receipt ? 'receipt' : 'home'; }
+  else if (a === 'mine') { S.busy = 'Loading your bookings'; render(); await loadMine(); S.busy = false; S.find.err = ''; S.view = 'mine'; }
+  else if (a === 'open') { S.receipt = (S.mine || []).find(b => String(b.booking_no) === v) || null; S.view = S.receipt ? 'receipt' : 'mine'; }
+  else if (a === 'find') {
+    const no = parseInt(S.find.no, 10), phone = S.find.phone.replace(/[\s-]/g, '');
+    if (!no || !phoneOk(phone)) { S.find.err = 'Enter the booking number and an 11-digit phone number.'; }
+    else { S.busy = 'Finding your booking'; render();
+      const b = await fetchBooking({ no, phone }); S.busy = false;
+      if (!b) S.find.err = 'No booking found with that number and phone.';
+      else { rememberBooking(no, phone, 0); S.find = { no:'', phone:'', err:'' }; await loadMine(); } }
+  }
   else if (a === 'home') { S.view = 'home'; }
   else if (a === 'grid') { S.sel = fresh(); S.view = 'grid'; render(); await loadTaken(); }
   else if (a === 'gday') { s.day = +v; render(); await loadTaken(); render(); window.scrollTo(0, y); return; }

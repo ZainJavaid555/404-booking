@@ -388,3 +388,57 @@ create policy "proofs_owner_read" on storage.objects for select to authenticated
 -- The table may already exist with the old 1-4 limit, so move it explicitly.
 alter table gz_bookings drop constraint if exists gz_bookings_players_check;
 alter table gz_bookings add constraint gz_bookings_players_check check (players between 1 and 8);
+
+-- ------------------------------------------------- CANCEL A BOOKING
+-- Owners can cancel a booking that is pending or confirmed and has not
+-- started. The slot becomes free at once. Nothing is deleted: the booking
+-- stays on record as cancelled, with who cancelled it and why. Any advance
+-- already received stays written on the booking, so the refund or credit
+-- can be settled with the customer by hand.
+alter table gz_bookings add column if not exists cancel_reason text;
+alter table gz_bookings add column if not exists cancelled_by  text;
+alter table gz_bookings add column if not exists cancelled_at  timestamptz;
+
+create or replace function gz_cancel_booking(p_id text, p_reason text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  who text;
+  b   gz_bookings%rowtype;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  if not is_owner() then raise exception 'only an owner can cancel a booking'; end if;
+  if coalesce(trim(p_reason), '') = '' then raise exception 'a reason is required to cancel'; end if;
+  select * into b from gz_bookings where id = p_id;
+  if not found then raise exception 'no such booking'; end if;
+  if b.state not in ('pending','confirmed') then raise exception 'this booking is already %', b.state; end if;
+  if b.session_id is not null then raise exception 'the session has already started — end it instead'; end if;
+  select name into who from profiles where id = auth.uid();
+  update gz_booking_payments set status = 'declined' where booking_id = p_id and status = 'pending';
+  update gz_bookings
+     set state = 'cancelled', cancel_reason = p_reason, cancelled_by = who, cancelled_at = now()
+   where id = p_id;
+  return true;
+end;
+$$;
+revoke all on function gz_cancel_booking(text, text) from public;
+grant execute on function gz_cancel_booking(text, text) to authenticated;
+
+-- The customer's receipt also shows why a booking was cancelled.
+create or replace function gz_booking_status(p_booking_no integer, p_phone text)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select jsonb_build_object('booking_no', b.booking_no, 'machine_id', b.machine_id, 'game', b.game,
+                            'start_time', b.start_time, 'end_time', b.end_time, 'players', b.players,
+                            'total', b.total, 'paid', b.paid, 'state', b.state,
+                            'decline_reason', b.decline_reason, 'cancel_reason', b.cancel_reason)
+    from gz_bookings b
+   where b.booking_no = p_booking_no and b.customer_phone = p_phone;
+$$;

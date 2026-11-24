@@ -165,7 +165,7 @@ const whenText = (start, end) => { const p = pk(start); const late = p.getUTCHou
   return WD[p.getUTCDay()] + ' ' + p.getUTCDate() + ' ' + MO[p.getUTCMonth()] + ', ' + hl(start) + ' – ' + hl(end) + late; };
 
 const S = { view:'home', step:1, machines:[], info:{rate:400,extra:100,advance_pct:50}, taken:[], busy:false, err:'',
-            sel:null, receipt:null, mine:[], find:{ no:'', phone:'', err:'' } };
+            sel:null, receipt:null, mine:[], find:{ no:'', phone:'', err:'' }, fromGrid:false, gfilter:null };
 const fresh = () => ({ m:null, game:null, day:0, start:null, hours:1, players:2, name:'', phone:'', full:false, file:null, preview:null });
 S.sel = fresh();
 const price = () => S.sel.hours * (S.info.rate + Math.max(0, S.sel.players - 2) * S.info.extra);
@@ -215,13 +215,17 @@ function grid(){
   for (let i = 0; i < CLOSE_AFTER; i++) {
     const start = base + i * H; if (start + H <= Date.now()) continue;
     const past = start < Date.now();
-    rows.push(`<tr><td class="t">${hl(start)}</td>` + S.machines.map(m => (past || isTaken(m.id, start, start + H))
+    rows.push(`<tr><td class="t">${hl(start)}</td>` + S.machines.map(m => (S.gfilter && !(m.games || []).includes(S.gfilter))
+      ? `<td><span title="This machine does not have ${esc(S.gfilter)}">✕</span></td>`
+      : (past || isTaken(m.id, start, start + H))
       ? `<td><span>${past ? '—' : 'Booked'}</span></td>`
       : `<td><button data-a="cell" data-m="${esc(m.id)}" data-v="${start}">Free</button></td>`).join('') + `</tr>`);
   }
   return `<div class="wrap">${head()}<h2>Free slots</h2><span class="ur">Hara dabba khali hai. Us par tap karein.</span>
    <div class="chips">${[0,1,2,3,4,5,6].map(d => `<button class="chip glass ${s.day === d ? 'sel' : ''}" data-a="gday" data-v="${d}"><b>${dayLabel(d)}</b><span>${dayDate(d)}</span></button>`).join('')}</div>
-   <div class="key"><span><i style="background:#d1fae5;border:1px solid #6ee7b7"></i>Free · tap to book</span><span><i style="background:rgba(15,23,42,.12)"></i>Booked</span></div>
+   <div class="lab" style="margin-top:14px">Which game? · Kaun si game?</div>
+   <div class="chips" style="margin-top:0">${[null].concat([...new Set(S.machines.flatMap(m => m.games || []))]).map(g => `<button class="chip glass ${S.gfilter === g ? 'sel' : ''}" style="min-width:0" data-a="gfilter" data-v="${g == null ? '' : esc(g)}"><b>${g == null ? 'Any game' : esc(g)}</b></button>`).join('')}</div>
+   <div class="key"><span><i style="background:#d1fae5;border:1px solid #6ee7b7"></i>Free · tap to book</span><span><i style="background:rgba(15,23,42,.12)"></i>Booked</span>${S.gfilter ? `<span>✕ no ${esc(S.gfilter)} on that machine</span>` : ''}</div>
    ${rows.length ? `<table class="tt"><tr><th></th>${S.machines.map(m => `<th>${esc(m.id)}<small>${esc((m.platform || '').toUpperCase())}</small></th>`).join('')}</tr>${rows.join('')}</table>`
      : '<p class="sub center" style="padding:30px 0">No times left on this day. Try another day.</p>'}
    <button class="btn ghost" style="margin-top:16px" data-a="home">← Back</button></div>`;
@@ -343,7 +347,7 @@ function mine(){
     return `<button class="glass card bk" style="${past ? 'opacity:.65' : ''}" data-a="open" data-v="${esc(b.booking_no)}">
       <div class="bk-top"><span class="mono" style="font-weight:700">#${esc(b.booking_no)}</span><span class="st ${esc(b.state)}">${esc(stLabel[b.state] || b.state)}</span></div>
       <div class="bk-main">${esc(b.machine_id)} · ${esc(b.game)}</div><div class="tiny">${esc(whenText(b.start_time, b.end_time))} · ${b.players} player${b.players > 1 ? 's' : ''}</div>
-      <div class="tiny" style="margin-top:6px">${['declined','cancelled','released'].includes(b.state) ? 'Not active' : left > 0 ? 'Pay at counter: <b style="color:var(--text)">' + rs(left) + '</b>' : 'Fully paid'}</div></button>`; };
+      <div class="tiny" style="margin-top:6px">${['declined','cancelled','released'].includes(b.state) ? 'Not active' : (b.state === 'pending' ? 'Payment being checked · ' : '') + (left > 0 ? 'Pay at counter: <b style="color:var(--text)">' + rs(left) + '</b>' : b.state === 'pending' ? 'nothing more to pay if approved' : 'Fully paid')}</div></button>`; };
   return `<div class="wrap">${head()}<h2>My bookings</h2><span class="ur">Aap ki tamam bookings</span>
    <div class="opts">${list.length ? list.map(card).join('') : '<p class="sub center" style="padding:24px 0">No bookings on this phone yet.</p>'}</div>
    <div class="lab">Booked from another phone?</div>
@@ -398,7 +402,7 @@ document.addEventListener('click', async e => {
   const el = e.target.closest('[data-a]'); if (!el) return;
   const a = el.dataset.a, v = el.dataset.v, s = S.sel; keep();
   const y = window.scrollY, stay = ['day','hrs','time','pl','full'].includes(a);
-  if (a === 'start') { S.sel = fresh(); S.step = 1; S.view = 'build'; S.err = ''; }
+  if (a === 'start') { S.sel = fresh(); S.step = 1; S.view = 'build'; S.err = ''; S.fromGrid = false; }
   else if (a === 'mine') { S.busy = 'Loading your bookings'; render(); await loadMine(); S.busy = false; S.find.err = ''; S.view = 'mine'; }
   else if (a === 'open') { S.receipt = (S.mine || []).find(b => String(b.booking_no) === v) || null; S.view = S.receipt ? 'receipt' : 'mine'; }
   else if (a === 'find') {
@@ -410,10 +414,15 @@ document.addEventListener('click', async e => {
       else { rememberBooking(no, phone, 0); S.find = { no:'', phone:'', err:'' }; await loadMine(); } }
   }
   else if (a === 'home') { S.view = 'home'; }
-  else if (a === 'grid') { S.sel = fresh(); S.view = 'grid'; render(); await loadTaken(); }
+  else if (a === 'grid') { S.sel = fresh(); S.fromGrid = false; S.view = 'grid'; render(); await loadTaken(); }
   else if (a === 'gday') { s.day = +v; render(); await loadTaken(); render(); window.scrollTo(0, y); return; }
-  else if (a === 'cell') { s.m = el.dataset.m; s.start = +v; s.hours = 1; s.game = null; S.step = 2; S.view = 'build'; }
-  else if (a === 'back') { if (S.step === 1) S.view = 'home'; else S.step--; }
+  else if (a === 'gfilter') { S.gfilter = v || null; render(); window.scrollTo(0, y); return; }
+  else if (a === 'cell') { s.m = el.dataset.m; s.start = +v; s.hours = 1; s.game = S.gfilter; S.fromGrid = true; S.step = S.gfilter ? 3 : 2; S.view = 'build'; }
+  else if (a === 'back') {
+    /* Came from the timetable: Back returns there, on the same day, not to "Pick your machine". */
+    if (S.fromGrid && S.step === (S.gfilter ? 3 : 2)) { s.m = null; s.game = null; s.start = null; S.view = 'grid'; render(); await loadTaken(); }
+    else if (S.step === 1) S.view = 'home'; else S.step--;
+  }
   else if (a === 'm') { if (s.m !== v) { s.game = null; s.start = null; } s.m = v; S.step = 2; }
   else if (a === 'game') { s.game = v; S.step = 3; await loadTaken(); }
   else if (a === 'day') { s.day = +v; s.start = null; render(); await loadTaken(); }

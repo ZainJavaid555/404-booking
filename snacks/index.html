@@ -1166,7 +1166,7 @@ function ensureClient(){
       });
     }
     sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY, {
-      auth:{ persistSession:true, autoRefreshToken:true }
+      auth:{ persistSession:true, autoRefreshToken:true, storageKey:'gz_auth' }   // one sign-in for the whole site
     });
     return sb;
   })();

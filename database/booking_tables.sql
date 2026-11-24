@@ -341,3 +341,45 @@ on conflict (id) do nothing;
 --   * Walk-in and manual bookings from the staff screen.
 --   * Starting a session from a booking (fills session_id, machine_id).
 -- =====================================================================
+
+-- =====================================================================
+-- ADDED 24 Nov 2026: what the public booking page needs
+-- =====================================================================
+
+-- ---------------------------------------- PUBLIC: PRICES AND PAY DETAILS
+-- The booking page is used by people who are not signed in, and they cannot
+-- read gz_settings. This hands out only what a customer is meant to see.
+create or replace function gz_public_booking_info()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select jsonb_build_object(
+    'rate',          coalesce((value->'booking'->>'rate')::numeric, 400),
+    'extra',         coalesce((value->'booking'->>'extra')::numeric, 100),
+    'advance_pct',   coalesce((value->'booking'->>'advance_pct')::numeric, 50),
+    'account_title', coalesce(value->'booking'->>'account_title', ''),
+    'account_no',    coalesce(value->'booking'->>'account_no', ''),
+    'account_bank',  coalesce(value->'booking'->>'account_bank', ''))
+    from (select coalesce((select value from gz_settings where id = 'main'), '{}'::jsonb) as value) s;
+$$;
+revoke all on function gz_public_booking_info() from public;
+grant execute on function gz_public_booking_info() to anon, authenticated;
+
+grant select on gz_machines to anon, authenticated;
+
+-- ------------------------------------------------- PAYMENT SCREENSHOTS
+-- A private bucket. Customers can put a screenshot in; only owners can
+-- look at one. Images only, 5 MB at most.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('payment-proofs', 'payment-proofs', false, 5242880, array['image/jpeg','image/png','image/webp'])
+on conflict (id) do nothing;
+
+drop policy if exists "proofs_anyone_upload" on storage.objects;
+drop policy if exists "proofs_owner_read"    on storage.objects;
+create policy "proofs_anyone_upload" on storage.objects for insert to anon, authenticated
+  with check (bucket_id = 'payment-proofs');
+create policy "proofs_owner_read" on storage.objects for select to authenticated
+  using (bucket_id = 'payment-proofs' and public.is_owner());

@@ -4,7 +4,7 @@
    which survives independently of this file.
    Bump CACHE whenever you upload a new index.html. */
 
-const CACHE = "404zone-v28";
+const CACHE = "404zone-v29";
 
 const SHELL = [
   "./",

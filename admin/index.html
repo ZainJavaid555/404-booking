@@ -5874,7 +5874,7 @@ function sessionRateSummary(s) {
     if (last && last.rate === rate) last.hours += Number(seg.hours) || 1;
     else compact.push({rate, hours: Number(seg.hours) || 1});
   });
-  return compact.map(x => `${formatMoney(x.rate)}/hr${x.hours > 1 ? ` × ${x.hours} hr` : ''}`).join(' + ');
+  return compact.map(x => `${formatMoney(x.rate)}/hr${x.hours !== 1 ? ` × ${x.hours} hr` : ''}`).join(' + ');
 }
 
 // ============ Start session ============
@@ -6103,9 +6103,11 @@ function buildSessionCard(s) {
       <div class="add-time-wrap" data-r="addwrap">
         <button class="btn btn-ghost" data-action="toggle-add">+ Add time <span class="add-time-chev">▾</span></button>
         <div class="add-time-menu" hidden>
+          <button class="add-time-item" data-add="30">+ 30 min</button>
           <button class="add-time-item" data-add="60">+ 1 hour</button>
           <button class="add-time-item" data-add="120">+ 2 hours</button>
           <button class="add-time-item" data-add="180">+ 3 hours</button>
+          <button class="add-time-item add-time-undo" data-undo="1">↩ Undo last add</button>
         </div>
       </div>
       <button class="btn btn-danger" data-action="end">End now</button>
@@ -6167,21 +6169,24 @@ function buildSessionCard(s) {
     addMenu.hidden = !addMenu.hidden;
     addWrap.classList.toggle('open', !addMenu.hidden);
   });
-  addMenu.querySelectorAll('.add-time-item').forEach(item => {
+  addMenu.querySelectorAll('.add-time-item[data-add]').forEach(item => {
     item.addEventListener('click', e => {
       e.stopPropagation();
       const mins = parseInt(item.dataset.add) || 0;
-      if (mins < 60) return;
+      if (mins < 30) return;
       const ms = mins * 60 * 1000;
       const playerCount = s.players?.length || 1;
       // Whole hours only, and every one of them is charged. Each added hour is
       // priced at the rate in force when that hour starts, so a session running
       // from 11pm into late-night bills the second hour at the late-night rate.
       if (!Array.isArray(s.priceSegments) || !s.priceSegments.length) s.priceSegments = sessionPriceSegments(s);
-      const fullHours = Math.floor(mins / 60);
-      for (let i = 0; i < fullHours; i++) {
-        const segmentStart = s.endTime + i * 60 * 60 * 1000;
-        s.priceSegments.push({ startTime: segmentStart, rate: rateFor(s.platform, playerCount, new Date(segmentStart)), hours: 1 });
+      // Added in pieces of at most one hour. A half hour is charged at half
+      // the hourly rate. Each piece is marked `added` so a mistake can be undone.
+      let left = mins / 60, segmentStart = s.endTime;
+      while (left > 0) {
+        const h = Math.min(1, left);
+        s.priceSegments.push({ startTime: segmentStart, rate: rateFor(s.platform, playerCount, new Date(segmentStart)), hours: h, added: true });
+        segmentStart += h * 60 * 60 * 1000; left -= h;
       }
       s.paidHours = s.priceSegments.reduce((n, seg) => n + (Number(seg.hours) || 1), 0);
       s.hourlyRate = Number(s.priceSegments[0]?.rate) || s.hourlyRate;
@@ -6201,6 +6206,27 @@ function buildSessionCard(s) {
       playAddTimeSound();
       flashAddedTime(card, mins);
     });
+  });
+
+  // ---- Undo the last added time (added by mistake) ----
+  // Only time that was ADDED can be taken back; the hours the session started
+  // with stay. Takes off the most recent piece: 30 minutes or one hour.
+  addMenu.querySelector('[data-undo]').addEventListener('click', e => {
+    e.stopPropagation();
+    const segs = Array.isArray(s.priceSegments) ? s.priceSegments : [];
+    const last = segs[segs.length - 1];
+    addMenu.hidden = true; addWrap.classList.remove('open');
+    if (!last || !last.added || segs.length < 2) { showToast('No added time to undo', 'warn'); return; }
+    const ms = (Number(last.hours) || 1) * 60 * 60 * 1000;
+    segs.pop();
+    s.paidHours = segs.reduce((n, seg) => n + (Number(seg.hours) || 1), 0);
+    s.endTime -= ms; s.totalMs -= ms;
+    state.warnedNotified.delete(s.id); state.endedNotified.delete(s.id);
+    persistNow();
+    refreshSessionCard(card, s);
+    const endsEl = card.querySelector('[data-r="ends"]');
+    if (endsEl) endsEl.textContent = 'Ends ' + formatTime(s.endTime);
+    showToast('Removed ' + (ms === 30 * 60 * 1000 ? '30 minutes' : '1 hour'));
   });
 
   card.querySelector('[data-action="end"]').addEventListener('click', async () => {

@@ -83,7 +83,7 @@ iframe{display:block;width:100%;height:calc(100vh - var(--bar));border:0;backgro
 .v-times span{position:absolute;right:10px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-dim);transform:translateY(5px);white-space:nowrap}
 .v-col{position:relative;border-left:1px solid var(--border)}
 .closed{position:absolute;left:0;right:0;background:repeating-linear-gradient(135deg,rgba(15,23,42,.07) 0 8px,transparent 8px 16px);border-top:1px solid var(--border-strong);display:grid;place-items:center;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:.16em;line-height:1.9;text-transform:uppercase;color:var(--text-dim)}
-.now{position:absolute;left:54px;right:0;height:2px;background:var(--danger);pointer-events:none}
+.now{position:absolute;left:54px;right:0;height:2px;background:var(--danger);pointer-events:none;z-index:3}
 .now::before{content:"";position:absolute;left:-4px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--danger)}
 .blk{position:absolute;left:5px;right:5px;border-radius:9px;padding:0 9px 0 10px;text-align:left;overflow:hidden;display:flex;flex-direction:column;justify-content:center;border-left:3px solid;z-index:1}
 .blk b{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
@@ -253,21 +253,30 @@ function renderBookings(){
        <td>${b.state === 'pending' ? '—' : rs(b.paid)}</td><td>${b.state === 'pending' ? '—' : (b.total - b.paid > 0 ? '<b>' + rs(b.total - b.paid) + '</b>' : 'Paid')}</td><td><span class="st ${esc(b.state)}">${esc(stLabel[b.state] || b.state)}</span></td></tr>`).join('')
       : `<tr><td colspan="9" class="empty">No bookings on this day yet.</td></tr>`}</table></div>`;
 
-  el.innerHTML = queue + calendar + list;
+  const gone = S.bookings.filter(b => ['cancelled','declined','released'].includes(b.state) && b.start_time < end && b.end_time > base);
+  const goneList = !gone.length ? '' : `<div class="sec"><h2>Cancelled or declined</h2><span class="tag">${gone.length} on this day</span></div><div class="glass" style="overflow-x:auto"><table>
+     <tr><th>Time</th><th>Machine</th><th>Customer</th><th>Phone</th><th>Paid</th><th>Status</th><th>Reason</th></tr>
+     ${gone.map(b => `<tr data-a="detail" data-v="${esc(b.id)}" style="cursor:pointer"><td>${hm(b.start_time)} – ${hm(b.end_time)}</td><td>${esc(b.machine_id)}</td><td>${esc(b.customer_name)}</td><td class="mono">${esc(b.customer_phone)}</td><td>${rs(b.paid)}</td><td><span class="st ${esc(b.state)}">${esc(stLabel[b.state] || b.state)}</span></td><td>${esc(b.cancel_reason || b.decline_reason || '—')}</td></tr>`).join('')}</table></div>`;
+  el.innerHTML = queue + calendar + list + goneList;
 }
 function modal(){
   const el = document.getElementById('modal'); if (!el) return;
   if (!S.modal) { el.innerHTML = ''; return; }
   if (S.modal.img) { el.innerHTML = `<div class="modal" data-a="close"><div class="sheet"><img class="full" src="${esc(S.modal.img)}" alt="Payment screenshot"><button class="btn ghost" style="margin-top:12px;width:100%" data-a="close">Close</button></div></div>`; return; }
   const b = S.bookings.find(x => x.id === S.modal.id); if (!b) { S.modal = null; el.innerHTML = ''; return; }
+  const canCancel = isOwner() && ['pending','confirmed'].includes(b.state) && !b.session_id;
   const late = Date.now() >= b.start_time + 30 * 60000, canRelease = b.state === 'confirmed' && !b.session_id && b.paid < b.total && late;
   el.innerHTML = `<div class="modal" data-a="close"><div class="sheet" data-stop="1"><div style="display:flex;justify-content:space-between;align-items:center"><span class="tag">${esc(b.machine_id)} · #${esc(b.booking_no)}</span><span class="st ${esc(b.state)}">${esc(stLabel[b.state] || b.state)}</span></div>
     <h2 style="margin-top:8px">${esc(b.customer_name)}</h2><div class="meta mono">${esc(b.customer_phone)}</div>
     <div class="glass card" style="margin-top:14px;padding:4px 16px"><div class="line"><span>Game</span><b>${esc(b.game)}</b></div><div class="line"><span>When</span><b>${esc(when(b))}</b></div><div class="line"><span>Players</span><b>${b.players}</b></div>
      <div class="line"><span>Total</span><b>${rs(b.total)}</b></div><div class="line"><span>Paid</span><b>${b.state === 'pending' ? 'Being checked' : rs(b.paid)}</b></div><div class="line"><span>To collect</span><b>${b.state === 'pending' ? '—' : rs(Math.max(0, b.total - b.paid))}</b></div>
      ${b.decided_by ? `<div class="line"><span>${b.state === 'declined' ? 'Declined' : 'Approved'} by</span><b>${esc(b.decided_by)}</b></div>` : ''}</div>
+    ${b.state === 'cancelled' ? `<div class="glass card" style="margin-top:12px;padding:4px 16px"><div class="line"><span>Cancelled by</span><b>${esc(b.cancelled_by || '—')}</b></div><div class="line"><span>Reason</span><b>${esc(b.cancel_reason || '—')}</b></div></div>` : ''}
     ${S.modal.err ? `<div class="err">${esc(S.modal.err)}</div>` : ''}
-    <div class="acts">${canRelease ? `<button class="btn no" data-a="release" data-v="${esc(b.id)}">Release seat (30+ min late)</button>` : ''}<button class="btn ghost" style="flex:1" data-a="close">Close</button></div></div></div>`;
+    ${canCancel && S.modal.cancel ? `<div class="tag" style="margin-top:16px">Why is it being cancelled?</div>
+      ${b.paid > 0 ? `<div class="meta" style="margin-top:6px">${rs(b.paid)} was received for this booking. Cancelling does not send it back: settle the refund or credit with the customer.</div>` : ''}
+      <div class="acts">${['Customer asked to cancel','Customer did not come','Machine not available','Booked by mistake'].map(r => `<button class="btn no" data-a="cancel2" data-v="${esc(b.id)}" data-r="${r}">${r}</button>`).join('')}</div>` : ''}
+    <div class="acts">${canCancel && !S.modal.cancel ? `<button class="btn no" data-a="cancel1">Cancel booking</button>` : ''}${canRelease ? `<button class="btn no" data-a="release" data-v="${esc(b.id)}">Release seat (30+ min late)</button>` : ''}<button class="btn ghost" style="flex:1" data-a="close">Close</button></div></div></div>`;
 }
 
 document.addEventListener('click', async e => {
@@ -286,6 +295,12 @@ document.addEventListener('click', async e => {
     const { error } = await sb.rpc('gz_decide_booking', { p_id: v, p_approve: a === 'approve', p_reason: a === 'decline' ? el.dataset.r : null });
     if (error) alertBar(error.message);
     S.decl = null; await loadBookings();
+  }
+  else if (a === 'cancel1') { S.modal.cancel = true; S.modal.err = ''; modal(); }
+  else if (a === 'cancel2') {
+    el.disabled = true;
+    const { error } = await sb.rpc('gz_cancel_booking', { p_id: v, p_reason: el.dataset.r });
+    if (error) { S.modal.err = error.message; S.modal.cancel = false; modal(); } else { S.modal = null; modal(); await loadBookings(); }
   }
   else if (a === 'release') {
     const { error } = await sb.rpc('gz_release_booking', { p_id: v });

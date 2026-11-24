@@ -108,6 +108,20 @@ h2{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;letter-spacing:-.
 .spin{width:40px;height:40px;border-radius:50%;border:3px solid rgba(15,23,42,.12);border-top-color:var(--accent);animation:sp .8s linear infinite;margin:70px auto 20px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .center{text-align:center}
+.ur{display:block;font-size:13px;color:var(--text-dim);font-weight:500;margin-top:4px}
+.btn .ur{color:rgba(255,255,255,.85);font-size:12px;margin:0}
+.btn.two{flex-direction:column;gap:2px;min-height:64px}
+.btn.ghost .ur{color:var(--text-dim)}
+.tt{width:100%;border-collapse:separate;border-spacing:4px;table-layout:fixed;margin-top:8px}
+.tt th{font-family:'Bricolage Grotesque',sans-serif;font-size:15px;font-weight:700;padding:6px 0}
+.tt th small{display:block;font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:500;color:var(--text-dim)}
+.tt td.t{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);text-align:right;padding-right:4px;white-space:nowrap}
+.tt td button,.tt td span{display:grid;place-items:center;width:100%;height:42px;border-radius:10px;font-size:11.5px;font-weight:700}
+.tt td button{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
+.tt td button:active{transform:scale(.96)}
+.tt td span{background:repeating-linear-gradient(135deg,rgba(15,23,42,.08) 0 6px,transparent 6px 12px);color:var(--text-faint);border:1px solid var(--border)}
+.key{display:flex;gap:14px;font-size:12px;color:var(--text-dim);margin-top:10px;align-items:center}
+.key i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:6px;vertical-align:-2px}
 @media(max-width:380px){h1{font-size:34px}}
 </style>
 </head>
@@ -174,14 +188,15 @@ async function loadTaken(){
 const app = document.getElementById('app');
 function render(){
   if (S.busy) { app.innerHTML = `<div class="wrap center"><div class="spin"></div><h2>${esc(S.busy)}</h2><p class="sub">This takes a few seconds.</p></div>`; return; }
-  app.innerHTML = S.view === 'home' ? home() : S.view === 'receipt' ? receipt() : builder();
+  app.innerHTML = S.view === 'home' ? home() : S.view === 'receipt' ? receipt() : S.view === 'grid' ? grid() : builder();
 }
 const head = () => `<header><div class="brand">404 <span>Gaming Zone</span></div><span class="tag">Build your own slot</span></header>`;
 function home(){
   const saved = lastBooking();
   return `<div class="wrap">${head()}
    <div class="hero"><h1>Build your<br>own <em>slot.</em></h1><p class="sub">Pick a machine, a game and a time. Done in one minute.</p></div>
-   <button class="btn" data-a="start">Build my slot →</button>
+   <button class="btn two" data-a="start"><span>Build my slot →</span><span class="ur">Apna slot book karein</span></button>
+   <button class="btn ghost two" style="margin-top:10px" data-a="grid"><span>See free slots</span><span class="ur">Dekhein kaun sa time khali hai</span></button>
    ${saved ? `<button class="btn ghost" style="margin-top:10px" data-a="mine">See my booking #${esc(saved.no)}</button>` : ''}
    <div class="facts"><div class="fact glass"><b>${rs(S.info.rate)}</b><span>per hour</span></div><div class="fact glass"><b>2 players</b><span>included</span></div><div class="fact glass"><b>9AM – 3AM</b><span>every day</span></div></div>
    <div class="how"><div class="glass"><span class="num">1</span><div><b>Build your slot</b><small>Machine, game, time and players.</small></div></div>
@@ -189,7 +204,26 @@ function home(){
    <div class="glass"><span class="num">3</span><div><b>Come and play</b><small>Your machine is ready at your time.</small></div></div></div>
    <p class="foot">Sami Town, Azizpull, Taj Bagh Scheme, Lahore<br>0324 4099700</p></div>`;
 }
+/* The timetable: every machine, hour by hour, for one day. Shows only free
+   or booked. Names and games of other people's bookings are never sent here. */
+function grid(){
+  const s = S.sel, base = dayStart(s.day), rows = [];
+  for (let i = 0; i < CLOSE_AFTER; i++) {
+    const start = base + i * H; if (start + H <= Date.now()) continue;
+    const past = start < Date.now();
+    rows.push(`<tr><td class="t">${hl(start)}</td>` + S.machines.map(m => (past || isTaken(m.id, start, start + H))
+      ? `<td><span>${past ? '—' : 'Booked'}</span></td>`
+      : `<td><button data-a="cell" data-m="${esc(m.id)}" data-v="${start}">Free</button></td>`).join('') + `</tr>`);
+  }
+  return `<div class="wrap">${head()}<h2>Free slots</h2><span class="ur">Hara dabba khali hai. Us par tap karein.</span>
+   <div class="chips">${[0,1,2,3,4,5,6].map(d => `<button class="chip glass ${s.day === d ? 'sel' : ''}" data-a="gday" data-v="${d}"><b>${dayLabel(d)}</b><span>${dayDate(d)}</span></button>`).join('')}</div>
+   <div class="key"><span><i style="background:#d1fae5;border:1px solid #6ee7b7"></i>Free · tap to book</span><span><i style="background:rgba(15,23,42,.12)"></i>Booked</span></div>
+   ${rows.length ? `<table class="tt"><tr><th></th>${S.machines.map(m => `<th>${esc(m.id)}<small>${esc((m.platform || '').toUpperCase())}</small></th>`).join('')}</tr>${rows.join('')}</table>`
+     : '<p class="sub center" style="padding:30px 0">No times left on this day. Try another day.</p>'}
+   <button class="btn ghost" style="margin-top:16px" data-a="home">← Back</button></div>`;
+}
 const STEPS = ['Machine','Game','Time','Players','Pay'];
+const UR = ['Apni machine chunein','Game chunein','Din aur time chunein','Kitne log khelenge?','Advance bhejein aur screenshot lagaein'];
 function builder(){
   const s = S.sel, st = S.step; let body = '';
   if (st === 1) {
@@ -218,7 +252,7 @@ function builder(){
      <div class="chips">${[0,1,2,3,4,5,6].map(d => `<button class="chip glass ${s.day === d ? 'sel' : ''}" data-a="day" data-v="${d}"><b>${dayLabel(d)}</b><span>${dayDate(d)}</span></button>`).join('')}</div>
      <div class="lab">How long?</div>
      <div class="stepper glass"><button class="rb" data-a="hrs" data-v="-1" ${s.hours <= 1 ? 'disabled' : ''}>−</button><div class="v">${s.hours} hour${s.hours > 1 ? 's' : ''}</div><button class="rb" data-a="hrs" data-v="1" ${s.hours >= 6 ? 'disabled' : ''}>+</button></div>
-     <div class="lab">Start time</div>${any ? html : '<p class="sub center" style="padding:30px 0">No times left on this day. Try another day.</p>'}`;
+     <div class="lab">Start time</div><div class="tiny" style="margin-bottom:4px">Dotted boxes are already booked.</div>${any ? html : '<p class="sub center" style="padding:30px 0">No times left on this day. Try another day.</p>'}`;
   }
   if (st === 4) {
     const extra = Math.max(0, s.players - 2);
@@ -246,9 +280,9 @@ function builder(){
   const parts = [s.m, s.game, s.start != null ? whenText(s.start, s.start + s.hours * H) : null, st >= 4 ? s.players + ' player' + (s.players > 1 ? 's' : '') : null].filter(Boolean);
   const can = st === 1 ? !!s.m : st === 2 ? !!s.game : st === 3 ? s.start != null : st === 4 ? true : ready();
   return `<div class="wrap">${head()}<div class="prog">${STEPS.map((_, i) => `<i class="${i < st ? 'on' : ''}"></i>`).join('')}</div>
-   <div class="tag" style="margin-bottom:8px">Step ${st} of 5 · ${STEPS[st - 1]}</div>${body}</div>
+   <div class="tag" style="margin-bottom:8px">Step ${st} of 5 · ${STEPS[st - 1]}</div>${body.replace('</h2>', '</h2><span class="ur">' + UR[st - 1] + '</span>')}</div>
    <div class="bar"><div class="bar-in"><div class="slot"><div class="d"><b>Your slot</b> · ${parts.length ? esc(parts.join(' · ')) : 'nothing picked yet'}</div>${s.start != null ? `<div class="p">${rs(price())}</div>` : ''}</div>
-   <div class="row"><button class="btn back" data-a="back" aria-label="Back">←</button><button class="btn" id="go" data-a="next" ${can ? '' : 'disabled'}>${st === 5 ? 'Lock my slot' : 'Continue'}</button></div></div></div>`;
+   <div class="row"><button class="btn back" data-a="back" aria-label="Back">←</button><button class="btn" id="go" data-a="next" ${can ? '' : 'disabled'}>${st === 5 ? 'Lock my slot · Slot pakka karein' : 'Continue · Agay'}</button></div></div></div>`;
 }
 const stLabel = { pending:'Verifying payment', confirmed:'Confirmed', declined:'Not confirmed', cancelled:'Cancelled', released:'Seat released', completed:'Completed' };
 function receipt(){
@@ -317,6 +351,10 @@ document.addEventListener('click', async e => {
   const y = window.scrollY, stay = ['day','hrs','time','pl','full'].includes(a);
   if (a === 'start') { S.sel = fresh(); S.step = 1; S.view = 'build'; S.err = ''; }
   else if (a === 'mine') { S.busy = 'Finding your booking'; render(); await refreshReceipt(); S.busy = false; S.view = S.receipt ? 'receipt' : 'home'; }
+  else if (a === 'home') { S.view = 'home'; }
+  else if (a === 'grid') { S.sel = fresh(); S.view = 'grid'; render(); await loadTaken(); }
+  else if (a === 'gday') { s.day = +v; render(); await loadTaken(); render(); window.scrollTo(0, y); return; }
+  else if (a === 'cell') { s.m = el.dataset.m; s.start = +v; s.hours = 1; s.game = null; S.step = 2; S.view = 'build'; }
   else if (a === 'back') { if (S.step === 1) S.view = 'home'; else S.step--; }
   else if (a === 'm') { if (s.m !== v) { s.game = null; s.start = null; } s.m = v; S.step = 2; }
   else if (a === 'game') { s.game = v; S.step = 3; await loadTaken(); }

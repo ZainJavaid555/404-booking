@@ -2,7 +2,7 @@
    Caches the app shell so it opens with no internet.
    Bump CACHE when you upload a new version of index.html. */
 
-const CACHE = "404snacks-v46";
+const CACHE = "404snacks-v47";
 const SHELL = [
   "./",
   "./index.html",
@@ -72,6 +72,18 @@ self.addEventListener("fetch", e => {
   if (url.hostname.endsWith("supabase.co")) return;
 
   // App shell: serve from cache first, refresh in background.
+  // The page itself: always try the network first, so a new version shows on
+  // the very next refresh. The cached copy is only for when there is no signal.
+  if (url.origin === location.origin && (req.mode === "navigate" || url.pathname.endsWith("/") || url.pathname.endsWith("index.html"))) {
+    e.respondWith(
+      fetch(req).then(res => {
+        if (res && res.status === 200) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+        return res;
+      }).catch(() => caches.match(req).then(hit => hit || caches.match("./index.html")))
+    );
+    return;
+  }
+
   if (url.origin === location.origin) {
     e.respondWith(
       caches.match(req).then(hit => {

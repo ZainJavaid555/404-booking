@@ -38,7 +38,7 @@ create table if not exists gz_bookings (
   game           text not null default '',
   start_time     bigint not null,                    -- ms since epoch, same as gz_sessions
   end_time       bigint not null,
-  players        integer not null default 2 check (players between 1 and 4),
+  players        integer not null default 2 check (players between 1 and 8),
   customer_name  text not null check (length(trim(customer_name)) >= 2),
   customer_phone text not null check (customer_phone ~ '^03[0-9]{9}$'),
   total          numeric not null check (total >= 0),
@@ -170,7 +170,7 @@ begin
   if not (m.games ? p_game) then raise exception 'that game is not on %', p_machine; end if;
 
   if p_hours is null or p_hours < 1 or p_hours > 6 then raise exception 'book between 1 and 6 hours'; end if;
-  if p_players is null or p_players < 1 or p_players > 4 then raise exception 'between 1 and 4 players'; end if;
+  if p_players is null or p_players < 1 or p_players > 8 then raise exception 'between 1 and 8 players'; end if;
   if p_start % 3600000 <> 0 then raise exception 'slots start on the hour'; end if;
   if p_start < (extract(epoch from now()) * 1000)::bigint - 5 * 60000 then
     raise exception 'that time has already passed';
@@ -383,3 +383,8 @@ create policy "proofs_anyone_upload" on storage.objects for insert to anon, auth
   with check (bucket_id = 'payment-proofs');
 create policy "proofs_owner_read" on storage.objects for select to authenticated
   using (bucket_id = 'payment-proofs' and public.is_owner());
+
+-- ------------------------------------------------ UP TO 8 PLAYERS
+-- The table may already exist with the old 1-4 limit, so move it explicitly.
+alter table gz_bookings drop constraint if exists gz_bookings_players_check;
+alter table gz_bookings add constraint gz_bookings_players_check check (players between 1 and 8);

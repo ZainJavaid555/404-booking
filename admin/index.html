@@ -1399,6 +1399,19 @@
 
   .session-actions { display: flex; gap: 8px; position: relative; z-index: 1; }
   .session-actions .btn { flex: 1; padding: 10px 14px; font-size: 13px; }
+  /* Machines: which console a session is on */
+  .machine-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+  .machine-btn { text-align: left; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--border-strong); background: var(--surface-3); cursor: pointer; font: inherit; color: inherit; }
+  .machine-btn b { display: block; font-family: 'Bricolage Grotesque', sans-serif; font-size: 18px; }
+  .machine-btn small { display: block; font-size: 11px; color: var(--text-dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .machine-btn.selected { border-color: var(--accent); background: rgba(8,145,178,.10); box-shadow: 0 0 0 3px rgba(8,145,178,.12); }
+  .machine-btn:disabled { opacity: .5; cursor: not-allowed; border-style: dashed; }
+  .machine-btn.soon small { color: var(--warning-strong); }
+  .machine-hint { font-size: 12.5px; color: var(--warning-strong); margin-top: 6px; min-height: 16px; }
+  .tag.machine { background: var(--text); color: #fff; font-weight: 700; }
+  .session-advance { margin-top: 8px; font-size: 12.5px; color: var(--accent-strong); background: rgba(8,145,178,.08); border-radius: 10px; padding: 7px 10px; position: relative; z-index: 1; }
+  /* The zone no longer has PCs. Old PC records still display. */
+  #platformChoice .radio-option[data-value="pc"], .radio-option[data-value="pc"] { display: none; }
   .add-player-row { margin-top: 8px; position: relative; z-index: 1; }
   .add-player-btns { display: flex; gap: 8px; }
   .add-player-btns[hidden], .remove-player-list[hidden] { display: none; }
@@ -3539,6 +3552,11 @@
 </label>
 </div>
 </div>
+<div class="field" id="machineField" hidden>
+<label class="label">Machine <span style="color:var(--danger-strong)">*</span></label>
+<div class="machine-grid" id="machineChoice"></div>
+<div class="machine-hint" id="machineHint"></div>
+</div>
 <div class="field" style="position: relative">
 <label class="label">Game <span class="optional-tag" id="gameReq">— optional</span></label>
 <input autocomplete="off" class="input" id="gameInput" placeholder="e.g. FIFA 24, GTA V, Call of Duty..." type="text">
@@ -4434,13 +4452,15 @@ function sessionToRow(x){
   return { id:x.id, platform:x.platform||'ps5', game:x.game||'', players:x.players||[],
            start_time:num(x.startTime), end_time:num(x.endTime), total_ms:num(x.totalMs),
            paid_hours:Math.max(1,num(x.paidHours)||1), hourly_rate:num(x.hourlyRate),
-           price_segments:x.priceSegments||[], started_by:x.startedBy||currentUserLabel() };
+           price_segments:x.priceSegments||[], started_by:x.startedBy||currentUserLabel(),
+           machine_id:x.machineId||null, booking_id:x.bookingId||null, advance_paid:num(x.advance) };
 }
 function rowToSession(r){
   return { id:r.id, platform:r.platform, game:r.game||'', players:r.players||[],
            startTime:num(r.start_time), endTime:num(r.end_time), totalMs:num(r.total_ms),
            paidHours:Math.max(1,num(r.paid_hours)||1), hourlyRate:num(r.hourly_rate),
-           priceSegments:r.price_segments||[], startedBy:r.started_by, type:'solo' };
+           priceSegments:r.price_segments||[], startedBy:r.started_by, type:'solo',
+           machineId:r.machine_id||null, bookingId:r.booking_id||null, advance:num(r.advance_paid) };
 }
 function rowToHistory(r){
   return { id:r.id, platform:r.platform, game:r.game||'', playerCount:num(r.player_count),
@@ -5203,6 +5223,7 @@ async function manualSyncNow(){
 function disconnectserver(){ cloud.connected = false; if (channel && sb) { try { sb.removeChannel(channel); } catch(e){} channel = null; } }
 
 function rerenderActiveView(){
+  if (typeof renderMachineChoice === 'function') renderMachineChoice();
   if (typeof sessionsGrid !== 'undefined' && sessionsGrid) { sessionsGrid.innerHTML = ''; renderSessions(); }
   if (typeof renderPlayersTable === 'function') renderPlayersTable();
   updateActiveBadge();
@@ -5383,6 +5404,7 @@ platformChoiceEl.addEventListener('click', e => {
   enforcePcSinglePlayer();
   updateEntryPreview();
   updateLivePriceCard();
+  renderMachineChoice();
 });
 
 // Game autocomplete
@@ -5915,6 +5937,18 @@ function startSession() {
 
   const gameRaw = canonicalGameName(gameInputEl.value);
   const now = Date.now();
+  // Which machine? Required whenever the machine list is available.
+  const machineField = document.getElementById('machineField');
+  if (machineField && !machineField.hidden) {
+    if (!sessionMachine) { alert('Pick the machine this session is on.'); return; }
+    const inUse = machineSession(sessionMachine);
+    if (inUse) { alert(sessionMachine + ' is already in use by ' + (inUse.players[0]?.name || 'another session') + '. End that session first.'); renderMachineChoice(); return; }
+    const nb = machineNextBooking(sessionMachine);
+    if (nb && nb.start_time < now + state.settings.totalMin * 60 * 1000) {
+      alert(sessionMachine + ' is booked at ' + fmtClock(nb.start_time) + ' by ' + nb.customer_name + '. There is not enough time for a session before that. Pick another machine.');
+      renderMachineChoice(); return;
+    }
+  }
   // A session is a solid 60 minutes. No loading bonus on top.
   const loadMs = 0;
   const totalMs = state.settings.totalMin * 60 * 1000;
@@ -5967,6 +6001,7 @@ function startSession() {
     id: 'sess_' + Math.random().toString(36).slice(2, 10),
     type: sessionType,
     platform: sessionPlatform,
+    machineId: (machineField && !machineField.hidden) ? sessionMachine : null,
     game: gameRaw,
     players: collected,
     startTime,
@@ -5985,6 +6020,7 @@ function startSession() {
   persistNow();
 
   // Reset form
+  sessionMachine = null; renderMachineChoice();
   rebuildPlayerRows();
   gameInputEl.value = '';
   resetCustomStartUI();
@@ -5993,6 +6029,78 @@ function startSession() {
   openInviteModal(newPlayers);
   setView('active');
 }
+
+/* ============================================================
+   Machines and bookings.
+   A session sits on a named machine (M1..M5, PS4, XBOX). The picker shows
+   which are in use and which are booked, and a walk-in cannot be started
+   on a machine if it would run into somebody's booking.
+   If the machine list cannot be loaded (old database, no signal on first
+   run), the picker stays hidden and sessions work as they always did.
+   ============================================================ */
+let sessionMachine = null;
+const link = { machines: [], bookings: [], ready: false };
+const fmtClock = ts => formatTime(ts);
+function machineSession(id){ return state.sessions.find(x => x.machineId === id) || null; }
+/* The next booking that still needs this machine: locked, not yet started. */
+function machineNextBooking(id, exceptBookingId){
+  const now = Date.now();
+  return link.bookings.filter(b => b.machine_id === id && !b.session_id && b.id !== exceptBookingId && b.end_time > now)
+                      .sort((a, b) => a.start_time - b.start_time)[0] || null;
+}
+async function loadMachinesAndBookings(){
+  if (!sb || !sbUser) return;
+  try {
+    const [m, b] = await Promise.all([
+      sb.from('gz_machines').select('id,platform,active,sort').eq('active', true).order('sort'),
+      sb.from('gz_bookings').select('id,booking_no,machine_id,customer_name,start_time,end_time,state,session_id')
+        .in('state', ['pending','confirmed']).gt('end_time', Date.now())
+    ]);
+    if (m.error) throw m.error;
+    link.machines = m.data || []; link.bookings = (b && b.data) || []; link.ready = true;
+  } catch (e) { console.warn('machines not loaded', e); }
+  renderMachineChoice();
+}
+function renderMachineChoice(){
+  const field = document.getElementById('machineField'), grid = document.getElementById('machineChoice'), hint = document.getElementById('machineHint');
+  if (!field || !grid) return;
+  const list = link.machines.filter(m => m.platform === sessionPlatform);
+  field.hidden = !link.ready || !list.length;
+  if (field.hidden) { sessionMachine = null; return; }
+  const now = Date.now(), need = (state.settings.totalMin || 60) * 60 * 1000;
+  if (sessionMachine && !list.some(m => m.id === sessionMachine)) sessionMachine = null;
+  grid.innerHTML = list.map(m => {
+    const busy = machineSession(m.id), nb = machineNextBooking(m.id);
+    const bookedNow = nb && nb.start_time <= now, tooSoon = nb && !bookedNow && nb.start_time < now + need;
+    const off = !!busy || bookedNow || tooSoon;
+    const note = busy ? 'In use \u00b7 ' + (busy.players[0]?.name || '')
+               : bookedNow ? 'Booked now \u00b7 ' + nb.customer_name
+               : nb ? 'Booked ' + fmtClock(nb.start_time) : 'Free';
+    if (off && sessionMachine === m.id) sessionMachine = null;
+    return `<button type="button" class="machine-btn ${sessionMachine === m.id ? 'selected' : ''} ${nb && !busy ? 'soon' : ''}" data-machine="${escapeHtml(m.id)}" ${off ? 'disabled' : ''}><b>${escapeHtml(m.id)}</b><small>${escapeHtml(note)}</small></button>`;
+  }).join('');
+  const sel = sessionMachine ? machineNextBooking(sessionMachine) : null;
+  hint.textContent = sel ? `${sessionMachine} is booked at ${fmtClock(sel.start_time)} by ${sel.customer_name}. This session must finish before then.` : '';
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('#machineChoice .machine-btn');
+  if (!b || b.disabled) return;
+  sessionMachine = b.dataset.machine; renderMachineChoice();
+});
+(function linkBoot(){
+  const t = setInterval(async () => {
+    if (typeof sb === 'undefined' || !sb || !sbUser) return;
+    clearInterval(t);
+    await loadMachinesAndBookings();
+    try {
+      sb.channel('gz-link')
+        .on('postgres_changes', { event:'*', schema:'public', table:'gz_bookings' }, loadMachinesAndBookings)
+        .on('postgres_changes', { event:'*', schema:'public', table:'gz_machines' }, loadMachinesAndBookings)
+        .subscribe();
+    } catch (e) { console.warn('booking updates not live', e); }
+    setInterval(loadMachinesAndBookings, 60000);
+  }, 1000);
+})();
 
 function playerKey(p) {
   // Same rule on every device, so two phones adding the same person produce
@@ -6089,6 +6197,7 @@ function buildSessionCard(s) {
         <div class="player-main">${escapeHtml(mainPlayer)}</div>
         <div class="player-extra">${escapeHtml(extra)}</div>
         <div class="session-tags">
+          ${s.machineId ? `<span class="tag machine">${escapeHtml(s.machineId)}</span>` : ''}
           <span class="tag plat-${platform}">${PLATFORM_LABEL[platform] || platform.toUpperCase()}</span>
           ${s.game ? `<span class="tag game">${getGameImage(s.game, s.platform) ? `<img class="session-game-art" src="${escapeHtml(getGameImage(s.game, s.platform))}" alt="" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{className:'session-game-fallback',textContent:'🎮'}))" />` : '<span class="session-game-fallback">🎮</span>'}<span>${escapeHtml(s.game)}</span></span>` : ''}
         </div>
@@ -6108,6 +6217,7 @@ function buildSessionCard(s) {
       <div><div class="price-label">Total Price</div><div class="price-detail" data-r="price-detail"></div></div>
       <div class="price-value" data-r="price-total"></div>
     </div>
+    ${Number(s.advance) > 0 ? `<div class="session-advance">Booked online \u00b7 advance ${formatMoney(s.advance)} already paid</div>` : ''}
     <div class="progress"><div class="progress-fill" data-r="progress" style="width: 0%"></div></div>
     <div class="session-actions">
       <div class="add-time-wrap" data-r="addwrap">
@@ -6228,6 +6338,14 @@ function buildSessionCard(s) {
       const mins = parseInt(item.dataset.add) || 0;
       if (mins < 30) return;
       const ms = mins * 60 * 1000;
+      if (s.machineId) {
+        const nb = machineNextBooking(s.machineId, s.bookingId);
+        if (nb && nb.start_time < s.endTime + ms) {
+          addMenu.hidden = true; addWrap.classList.remove('open');
+          alert(s.machineId + ' is booked at ' + fmtClock(nb.start_time) + ' by ' + nb.customer_name + '. This session cannot be extended past that.');
+          return;
+        }
+      }
       const playerCount = s.players?.length || 1;
       // Whole hours only, and every one of them is charged. Each added hour is
       // priced at the rate in force when that hour starts, so a session running
@@ -6286,12 +6404,23 @@ function buildSessionCard(s) {
     stopEndBeep();
     const snacks = snackTotal(s.id);
     const gaming = sessionRevenue(s);
-    const pay = await askPayment(
+    const bill = gaming + snacks;
+    const adv = Math.max(0, Math.min(Math.round(Number(s.advance) || 0), bill));   // paid online when booking
+    const due = bill - adv;
+    const parts = [];
+    if (snacks) parts.push('Gaming ' + formatMoney(gaming) + '  +  Snacks ' + formatMoney(snacks));
+    if (adv) parts.push('Bill ' + formatMoney(bill) + '  \u2212  advance ' + formatMoney(adv) + ' already paid online');
+    let pay = await askPayment(
       'End session \u2014 ' + (s.players[0]?.name || 'session'),
-      formatMoney(gaming + snacks),
-      snacks ? ('Gaming ' + formatMoney(gaming) + '  +  Snacks ' + formatMoney(snacks)) : null,
-      gaming + snacks);
+      adv ? formatMoney(due) + ' to collect' : formatMoney(bill),
+      parts.length ? parts.join('  \u00b7  ') : null,
+      due);
     if (!pay) return;                       // cancelled: nothing is ended
+    if (adv) {
+      // What was collected now, plus the advance, is the whole bill on record.
+      const c = Math.round(Number(pay.cash) || 0), o = Math.round(Number(pay.online) || 0) + adv;
+      pay = { method: c > 0 && o > 0 ? 'split' : (c > 0 ? 'cash' : 'online'), cash: c, online: o };
+    }
     archiveSession(s, pay);
     state.sessions = state.sessions.filter(x => x.id !== s.id);
     state.warnedNotified.delete(s.id);

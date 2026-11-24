@@ -192,6 +192,26 @@ begin
   end if;
   if coalesce(p_proof_path, '') = '' then raise exception 'upload the payment screenshot'; end if;
 
+  -- The screenshot must be a real file that was just uploaded to our own
+  -- bucket, and one screenshot can pay for one booking only. Without this,
+  -- someone calling the database directly could lock slots with no upload.
+  if p_proof_path !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}/[A-Za-z0-9-]{8,80}[.](jpg|png|webp)$' then
+    raise exception 'upload the payment screenshot again';
+  end if;
+  if not exists (select 1 from storage.objects where bucket_id = 'payment-proofs' and name = p_proof_path) then
+    raise exception 'the screenshot did not upload — please try again';
+  end if;
+  if exists (select 1 from gz_booking_payments where proof_path = p_proof_path) then
+    raise exception 'this screenshot has already been used for a booking';
+  end if;
+  if length(trim(p_name)) > 60 then raise exception 'that name is too long'; end if;
+
+  -- One phone number cannot hold more than 5 unchecked bookings at a time,
+  -- so a single person cannot lock the whole timetable with junk.
+  if (select count(*) from gz_bookings where customer_phone = p_phone and state = 'pending') >= 5 then
+    raise exception 'you already have 5 bookings waiting to be checked — we will confirm them soon';
+  end if;
+
   price := gz_booking_price(p_hours, p_players);
   need  := ceil(price * coalesce((select (value->'booking'->>'advance_pct')::numeric
                                     from gz_settings where id = 'main'), 50) / 100.0);
@@ -241,27 +261,37 @@ as $$
 $$;
 
 -- ------------------------------------------- OWNER: APPROVE OR DECLINE
-create or replace function gz_decide_booking(p_id text, p_approve boolean, p_reason text default null)
+-- Approving records the amount that ACTUALLY arrived in the account, which is
+-- not always what the customer typed. The older 3-argument version is removed
+-- so there is only one way to approve.
+alter table gz_booking_payments add column if not exists received numeric;
+drop function if exists gz_decide_booking(text, boolean, text);
+
+create or replace function gz_decide_booking(p_id text, p_approve boolean, p_reason text default null, p_amount numeric default null)
 returns text
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  who text;
-  amt numeric;
+  who     text;
+  claimed numeric;
+  amt     numeric;
+  tot     numeric;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   if not is_owner() then raise exception 'only an owner can approve or decline a payment'; end if;
-  if not exists (select 1 from gz_bookings where id = p_id and state = 'pending') then
-    raise exception 'that booking is not waiting for a decision';
-  end if;
+  select total into tot from gz_bookings where id = p_id and state = 'pending';
+  if not found then raise exception 'that booking is not waiting for a decision'; end if;
   select name into who from profiles where id = auth.uid();
 
   if p_approve then
-    select coalesce(sum(amount), 0) into amt from gz_booking_payments
+    select coalesce(sum(amount), 0) into claimed from gz_booking_payments
      where booking_id = p_id and status = 'pending';
-    update gz_booking_payments set status = 'approved' where booking_id = p_id and status = 'pending';
+    amt := coalesce(p_amount, claimed);
+    if amt <= 0 then raise exception 'enter the amount that actually arrived'; end if;
+    if amt > tot then raise exception 'that is more than the booking total (Rs %)', tot; end if;
+    update gz_booking_payments set status = 'approved', received = amt where booking_id = p_id and status = 'pending';
     update gz_bookings set state = 'confirmed', paid = amt, decided_by = who, decided_at = now()
      where id = p_id;
     return 'confirmed';
@@ -305,14 +335,14 @@ revoke all on function gz_booking_price(integer, integer)            from public
 revoke all on function gz_public_slots(bigint, bigint)               from public;
 revoke all on function gz_create_booking(text, text, bigint, integer, integer, text, text, numeric, text, text) from public;
 revoke all on function gz_booking_status(integer, text)              from public;
-revoke all on function gz_decide_booking(text, boolean, text)        from public;
+revoke all on function gz_decide_booking(text, boolean, text, numeric) from public;
 revoke all on function gz_release_booking(text)                      from public;
 
 grant execute on function gz_booking_price(integer, integer)         to anon, authenticated;
 grant execute on function gz_public_slots(bigint, bigint)            to anon, authenticated;
 grant execute on function gz_create_booking(text, text, bigint, integer, integer, text, text, numeric, text, text) to anon, authenticated;
 grant execute on function gz_booking_status(integer, text)           to anon, authenticated;
-grant execute on function gz_decide_booking(text, boolean, text)     to authenticated;
+grant execute on function gz_decide_booking(text, boolean, text, numeric) to authenticated;
 grant execute on function gz_release_booking(text)                   to authenticated;
 
 -- --------------------------------------------------------------- REALTIME
@@ -442,3 +472,7 @@ as $$
     from gz_bookings b
    where b.booking_no = p_booking_no and b.customer_phone = p_phone;
 $$;
+
+-- ------------------------------------------------ ONE SCREENSHOT, ONE BOOKING
+create unique index if not exists gz_booking_payments_proof_uniq
+  on gz_booking_payments (proof_path) where proof_path is not null;

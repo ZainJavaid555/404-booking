@@ -1400,7 +1400,14 @@
   .session-actions { display: flex; gap: 8px; position: relative; z-index: 1; }
   .session-actions .btn { flex: 1; padding: 10px 14px; font-size: 13px; }
   .add-player-row { margin-top: 8px; position: relative; z-index: 1; }
-  .add-player-row > .btn { width: 100%; padding: 9px 14px; font-size: 13px; }
+  .add-player-btns { display: flex; gap: 8px; }
+  .add-player-btns[hidden], .remove-player-list[hidden] { display: none; }
+  .add-player-btns .btn { flex: 1; padding: 9px 14px; font-size: 13px; }
+  .add-player-btns .btn[hidden] { display: none; }
+  .add-player-btns .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .remove-player-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .remove-player-list .btn { padding: 7px 12px; font-size: 13px; }
+  .remove-player-hint { width: 100%; font-size: 12px; color: var(--text-dim); }
   .add-player-form { display: flex; gap: 6px; }
   .add-player-form[hidden] { display: none; }
   .add-player-form input { flex: 1; min-width: 0; height: 38px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--surface-3); padding: 0 12px; font: inherit; font-size: 14px; outline: none; }
@@ -6114,7 +6121,11 @@ function buildSessionCard(s) {
       <button class="btn btn-danger" data-action="end">End now</button>
     </div>
     <div class="add-player-row" data-r="addplayer">
-      <button class="btn btn-ghost" data-action="add-player">+ Add player</button>
+      <div class="add-player-btns">
+        <button class="btn btn-ghost" data-action="add-player">+ Add player</button>
+        <button class="btn btn-ghost" data-action="remove-player">− Remove player</button>
+      </div>
+      <div class="remove-player-list" hidden></div>
       <form class="add-player-form" hidden>
         <input type="text" maxlength="40" placeholder="Friend's name" autocomplete="off">
         <button class="btn btn-ghost" type="submit">Add</button>
@@ -6127,20 +6138,26 @@ function buildSessionCard(s) {
   // The new head-count applies from the hour that is running now onwards.
   // Hours that have already finished stay at the price they were played at.
   const apRow = card.querySelector('[data-r="addplayer"]');
+  const apBtns = apRow.querySelector('.add-player-btns');
   const apBtn = apRow.querySelector('[data-action="add-player"]');
+  const rpBtn = apRow.querySelector('[data-action="remove-player"]');
+  const rpList = apRow.querySelector('.remove-player-list');
   const apForm = apRow.querySelector('.add-player-form');
   const apInput = apForm.querySelector('input');
+  const MAX_PLAYERS = 8;
   if ((s.platform || 'ps5') === 'pc') apRow.hidden = true;        // PC is single-player
-  apBtn.addEventListener('click', () => { apBtn.hidden = true; apForm.hidden = false; apInput.value = ''; apInput.focus(); });
-  apForm.querySelector('[data-action="cancel-player"]').addEventListener('click', () => { apForm.hidden = true; apBtn.hidden = false; });
-  apForm.addEventListener('submit', e => {
-    e.preventDefault();
-    const name = apInput.value.trim();
-    if (!name) { apInput.focus(); return; }
-    if ((s.players?.length || 0) >= 8) { showToast('8 players is the most for one session', 'warn'); return; }
-    if (!Array.isArray(s.players)) s.players = [];
-    s.players.push({ name, phone: '' });
-    const count = s.players.length, now = Date.now(), HOUR = 60 * 60 * 1000;
+
+  // Greyed out at 8 players; Remove only appears once there is someone to remove.
+  const syncPlayerBtns = () => {
+    const n = s.players?.length || 0;
+    apBtn.disabled = n >= MAX_PLAYERS;
+    apBtn.textContent = n >= MAX_PLAYERS ? 'Full \u00b7 8 players' : '+ Add player';
+    rpBtn.hidden = n < 2;
+  };
+  // Re-price the hour that is running now and every later one for the current
+  // head-count. Hours already finished keep the price they were played at.
+  const repricePlayers = () => {
+    const count = Math.max(1, s.players.length), now = Date.now(), HOUR = 60 * 60 * 1000;
     s.priceSegments = sessionPriceSegments(s).map(seg => {
       const segEnd = Number(seg.startTime) + (Number(seg.hours) || 1) * HOUR;
       return segEnd > now ? Object.assign({}, seg, { rate: rateFor(s.platform, count, new Date(Number(seg.startTime))) }) : seg;
@@ -6148,10 +6165,43 @@ function buildSessionCard(s) {
     s.hourlyRate = Number(s.priceSegments[0]?.rate) || s.hourlyRate;
     persistNow();
     const extraEl = card.querySelector('.player-extra');
-    if (extraEl) extraEl.textContent = '+ ' + s.players.slice(1).map(p => p.name).join(', ');
+    if (extraEl) extraEl.textContent = s.players.length > 1
+      ? '+ ' + s.players.slice(1).map(p => p.name).join(', ')
+      : (s.players[0]?.phone ? formatPkPhoneDisplay(s.players[0].phone) : '');
     refreshSessionCard(card, s);
-    apForm.hidden = true; apBtn.hidden = false;
-    showToast(name + ' added \u2014 ' + count + ' players now');
+    syncPlayerBtns();
+  };
+  const closePlayerPanels = () => { apForm.hidden = true; rpList.hidden = true; apBtns.hidden = false; };
+  syncPlayerBtns();
+
+  apBtn.addEventListener('click', () => { apBtns.hidden = true; rpList.hidden = true; apForm.hidden = false; apInput.value = ''; apInput.focus(); });
+  apForm.querySelector('[data-action="cancel-player"]').addEventListener('click', closePlayerPanels);
+  apForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = apInput.value.trim();
+    if (!name) { apInput.focus(); return; }
+    if (!Array.isArray(s.players)) s.players = [];
+    if (s.players.length >= MAX_PLAYERS) { showToast('8 players is the most for one session', 'warn'); closePlayerPanels(); return; }
+    s.players.push({ name, phone: '' });
+    repricePlayers(); closePlayerPanels();
+    showToast(name + ' added \u2014 ' + s.players.length + ' players now');
+  });
+
+  // ---- Remove a player added by mistake ----
+  // The first player is the one the session is under, so they cannot be removed.
+  rpBtn.addEventListener('click', () => {
+    rpList.innerHTML = '<div class="remove-player-hint">Tap the player to remove</div>'
+      + s.players.slice(1).map((p, i) => `<button class="btn btn-ghost" data-idx="${i + 1}">${escapeHtml(p.name)} \u2715</button>`).join('')
+      + '<button class="btn btn-ghost" data-idx="-1">Cancel</button>';
+    apBtns.hidden = true; apForm.hidden = true; rpList.hidden = false;
+  });
+  rpList.addEventListener('click', e => {
+    const b = e.target.closest('[data-idx]'); if (!b) return;
+    const idx = parseInt(b.dataset.idx, 10);
+    if (idx < 1 || idx >= s.players.length) { closePlayerPanels(); return; }
+    const gone = s.players.splice(idx, 1)[0];
+    repricePlayers(); closePlayerPanels();
+    showToast((gone?.name || 'Player') + ' removed \u2014 ' + s.players.length + ' player' + (s.players.length > 1 ? 's' : '') + ' now');
   });
 
   // Wire up Add Time dropdown

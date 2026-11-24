@@ -4,7 +4,7 @@
    which survives independently of this file.
    Bump CACHE whenever you upload a new index.html. */
 
-const CACHE = "404zone-v32";
+const CACHE = "404zone-v33";
 
 const SHELL = [
   "./",
@@ -71,6 +71,18 @@ self.addEventListener("fetch", e => {
   // Never cache database traffic — session data must always be live, and a
   // stale cached reply would be worse than an honest failure.
   if (url.hostname.endsWith("supabase.co")) return;
+
+  // The page itself: always try the network first, so a new version shows on
+  // the very next refresh. The cached copy is only for when there is no signal.
+  if (url.origin === location.origin && (req.mode === "navigate" || url.pathname.endsWith("/") || url.pathname.endsWith("index.html"))) {
+    e.respondWith(
+      fetch(req).then(res => {
+        if (res && res.status === 200) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+        return res;
+      }).catch(() => caches.match(req).then(hit => hit || caches.match("./index.html")))
+    );
+    return;
+  }
 
   // The app itself: serve instantly from cache, refresh in the background.
   if (url.origin === location.origin) {

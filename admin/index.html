@@ -4299,12 +4299,13 @@ See you again soon! — 404 Gaming Zone`,
 //   12:00-14:30 off-peak | 14:30-23:30 standard | 23:30-03:00 late night
 //   03:00-12:00 on demand
 // base covers the first two players; add is charged per player beyond two.
+// Every extra player is Rs 100 per hour, in every slot (Zain, 24 Nov 2026).
 // PC is single-player, so add is always 0.
 const DEFAULT_PRICING = {
-  offPeak:   { ps5:{base:300,add:150}, ps4:{base:200,add:100}, xbox:{base:300,add:150}, pc:{base:150,add:0} },
-  standard:  { ps5:{base:400,add:200}, ps4:{base:300,add:150}, xbox:{base:400,add:200}, pc:{base:200,add:0} },
-  lateNight: { ps5:{base:600,add:300}, ps4:{base:450,add:200}, xbox:{base:600,add:300}, pc:{base:300,add:0} },
-  onDemand:  { ps5:{base:300,add:150}, ps4:{base:200,add:100}, xbox:{base:300,add:150}, pc:{base:150,add:0} },
+  offPeak:   { ps5:{base:300,add:100}, ps4:{base:200,add:100}, xbox:{base:300,add:100}, pc:{base:150,add:0} },
+  standard:  { ps5:{base:400,add:100}, ps4:{base:300,add:100}, xbox:{base:400,add:100}, pc:{base:200,add:0} },
+  lateNight: { ps5:{base:600,add:100}, ps4:{base:450,add:100}, xbox:{base:600,add:100}, pc:{base:300,add:0} },
+  onDemand:  { ps5:{base:300,add:100}, ps4:{base:200,add:100}, xbox:{base:300,add:100}, pc:{base:150,add:0} },
 };
 const SLOTS = ['offPeak','standard','lateNight','onDemand'];
 const PLATFORMS = ['ps5','ps4','xbox','pc'];

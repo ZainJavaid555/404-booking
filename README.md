@@ -20,6 +20,8 @@ the live repos on purpose.
 
 | Folder | What it is |
 |---|---|
+| `index.html` | The one website: staff sign in once, then Sessions, Snacks and Bookings in one place |
+| `book/` | Customer page: Build Your Own Slot (no sign-in) |
 | `admin/` | Session manager (copy of `admin404`, 24 Nov 2026), with game cover images |
 | `snacks/` | Snacks counter app (copy of `snacks`, 24 Nov 2026) |
 | `database/full_schema.sql` | Full structure of the live database (no data), exported 24 Nov 2026 |
@@ -30,4 +32,5 @@ the live repos on purpose.
 
 - Snacks product photos (`snacks/products/`), which are missing from the source repo
 - Test logins (an owner and a staff user) in the `404-test` project
-- The booking system itself: machines, bookings, payment proof, approval queue
+- Walk-in and manual bookings, starting a session from a booking, cancellations
+- Merging Sessions and Snacks into the main page properly (today they are shown inside it)

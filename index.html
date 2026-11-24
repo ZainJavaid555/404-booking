@@ -2,26 +2,302 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0891b2">
 <meta name="robots" content="noindex">
-<title>404 Gaming Zone — test site</title>
+<title>404 Gaming Zone</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link href="https://fonts.gstatic.com" rel="preconnect" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Bricolage+Grotesque:wght@600;700;800&display=swap" rel="stylesheet"/>
 <style>
-  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#e8eef5;color:#0b1726;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-  main{width:min(92vw,420px);text-align:center}
-  h1{font-size:26px;margin:0 0 6px}
-  p{color:#475569;margin:0 0 22px}
-  a{display:block;margin:10px 0;padding:16px;border-radius:14px;background:#fff;border:1px solid rgba(15,23,42,.1);color:#0b1726;text-decoration:none;font-weight:600}
-  a:hover{border-color:#0891b2}
-  small{display:block;margin-top:18px;color:#94a3b8}
+:root{
+  --bg:#e8eef5; --surface:rgba(255,255,255,.62); --surface-3:rgba(255,255,255,.85);
+  --border:rgba(15,23,42,.08); --border-strong:rgba(15,23,42,.16);
+  --text:#0b1726; --text-dim:#475569; --text-faint:#94a3b8;
+  --accent:#0891b2; --violet:#8b5cf6; --ok:#059669; --warn:#d97706; --danger:#dc2626;
+  --radius:18px; --shadow-sm:0 1px 0 rgba(255,255,255,.6) inset,0 8px 24px -6px rgba(15,76,129,.15);
+  --bar:56px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Space Grotesk',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:var(--bg);color:var(--text);
+  background-image:radial-gradient(60% 40% at 15% 0%,rgba(103,232,249,.35),transparent 70%),radial-gradient(50% 40% at 95% 10%,rgba(139,92,246,.18),transparent 70%);background-attachment:fixed}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input{font:inherit;color:inherit}
+.mono{font-family:'JetBrains Mono',monospace}
+.glass{background:var(--surface);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.brand{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:18px;letter-spacing:-.02em;white-space:nowrap}
+.brand span{color:var(--accent)}
+.tag{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim)}
+h2{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;letter-spacing:-.02em;font-weight:700}
+h3{font-size:15px;font-weight:700}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:12px;font-weight:700;font-size:14px;color:#fff;
+  background:linear-gradient(135deg,var(--accent),#4f6bd8);box-shadow:0 8px 20px -8px rgba(8,145,178,.55)}
+.btn.wide{width:100%;min-height:52px;font-size:16px;border-radius:14px}
+.btn.ghost{background:var(--surface-3);color:var(--text);border:1px solid var(--border-strong);box-shadow:none}
+.btn.ok{background:var(--ok);box-shadow:none}.btn.no{background:#fff;color:var(--danger);border:1px solid #fecaca;box-shadow:none}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+/* sign in */
+.gate{min-height:100%;display:grid;place-items:center;padding:20px}
+.gate .glass{width:min(92vw,380px);padding:28px}
+.field{margin-top:12px}
+.field input{width:100%;height:50px;border-radius:12px;border:1.5px solid var(--border-strong);padding:0 14px;background:var(--surface-3);outline:none;font-size:16px}
+.field input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(8,145,178,.15)}
+.err{margin-top:12px;padding:10px 12px;border-radius:10px;background:#fee2e2;color:#991b1b;font-size:13.5px}
+/* shell */
+.top{position:sticky;top:0;z-index:20;height:var(--bar);display:flex;align-items:center;gap:14px;padding:0 16px;background:rgba(232,238,245,.86);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--border)}
+.nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1}
+.nav::-webkit-scrollbar{display:none}
+.nav button{flex:none;padding:8px 14px;border-radius:99px;font-weight:600;font-size:14px;color:var(--text-dim)}
+.nav button.on{background:var(--text);color:#fff}
+.nav .c{background:#f59e0b;color:#fff;border-radius:99px;font-size:11px;font-weight:700;padding:1px 7px;margin-left:6px}
+.who{font-size:12px;color:var(--text-dim);white-space:nowrap}
+.link{font-size:13px;font-weight:600;padding:7px 12px;border-radius:99px;border:1px solid var(--border-strong);background:var(--surface-3);white-space:nowrap;text-decoration:none;color:var(--text)}
+.pane{display:none}.pane.on{display:block}
+iframe{display:block;width:100%;height:calc(100vh - var(--bar));border:0;background:var(--bg)}
+.page{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
+.sec{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:26px 0 12px}
+.sec:first-child{margin-top:0}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.card{padding:16px}
+.proof{display:flex;gap:14px}
+.shot{flex:none;width:96px;height:150px;border-radius:10px;background:rgba(15,23,42,.06);border:1px solid var(--border);display:grid;place-items:center;font-size:11px;color:var(--text-faint);text-align:center;overflow:hidden}
+.shot img{width:100%;height:100%;object-fit:cover;cursor:zoom-in}
+.meta{font-size:13px;color:var(--text-dim);margin-top:3px}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.st{display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:99px;padding:5px 9px;white-space:nowrap}
+.st.pending{background:#fef3c7;color:#92400e}.st.confirmed{background:#d1fae5;color:#065f46}.st.declined,.st.cancelled,.st.released{background:#fee2e2;color:#991b1b}.st.completed{background:#e2e8f0;color:#475569}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;min-width:74px;padding:9px 12px;text-align:center;border:1.5px solid var(--border)}
+.chip b{display:block;font-size:13.5px}.chip span{font-size:11px;color:var(--text-dim)}
+.chip.sel{background:var(--text);color:#fff;border-color:var(--text)}.chip.sel span{color:#cbd5e1}
+/* calendar */
+.sched{overflow-x:auto}
+.v-in{min-width:720px}
+.v-head{display:grid;border-bottom:1px solid var(--border)}
+.v-mh{padding:12px;border-left:1px solid var(--border);font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px}
+.v-mh small{display:block;font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:11.5px;color:var(--text-dim)}
+.v-body{display:grid;position:relative;background-image:linear-gradient(to bottom,var(--border) 1px,transparent 1px)}
+.v-times{position:relative}
+.v-times span{position:absolute;right:10px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-dim);transform:translateY(5px);white-space:nowrap}
+.v-col{position:relative;border-left:1px solid var(--border)}
+.closed{position:absolute;left:0;right:0;background:repeating-linear-gradient(135deg,rgba(15,23,42,.07) 0 8px,transparent 8px 16px);border-top:1px solid var(--border-strong);display:grid;place-items:center;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:.16em;line-height:1.9;text-transform:uppercase;color:var(--text-dim)}
+.now{position:absolute;left:54px;right:0;height:2px;background:var(--danger);pointer-events:none}
+.now::before{content:"";position:absolute;left:-4px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--danger)}
+.blk{position:absolute;left:5px;right:5px;border-radius:9px;padding:0 9px 0 10px;text-align:left;overflow:hidden;display:flex;flex-direction:column;justify-content:center;border-left:3px solid;z-index:1}
+.blk b{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.blk span{font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+.blk.confirmed{background:#d1fae5;border-color:var(--ok)}.blk.pending{background:#fef3c7;border-color:#f59e0b}.blk.completed{background:#e2e8f0;border-color:#94a3b8}
+.leg{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text-dim);margin-top:10px}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);padding:12px 14px;border-bottom:1px solid var(--border)}
+td{padding:12px 14px;border-bottom:1px solid var(--border);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.empty{padding:34px 10px;text-align:center;color:var(--text-dim)}
+.line{display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px}
+.line:last-child{border-bottom:0}.line span{color:var(--text-dim)}.line b{text-align:right}
+.modal{position:fixed;inset:0;z-index:40;background:rgba(15,23,42,.45);backdrop-filter:blur(4px);display:grid;place-items:center;padding:16px}
+.sheet{background:var(--bg);border-radius:22px;padding:22px;width:min(96vw,460px);max-height:92vh;overflow:auto}
+.sheet img.full{max-width:100%;border-radius:12px;display:block}
+@media(max-width:640px){.who,.brand span{display:none}}
 </style>
 </head>
 <body>
-<main>
-  <h1>404 Gaming Zone</h1>
-  <p>Test site. Uses the test database only.</p>
-  <a href="./admin/">Session manager</a>
-  <a href="./snacks/">Snacks counter</a>
-  <small>Not the live website.</small>
-</main>
+<div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+/* =====================================================================
+   404 Gaming Zone — one website for everything
+   Sessions and Snacks are the existing apps, shown inside this page with
+   one shared sign-in. Bookings is new. TEST database only.
+   ===================================================================== */
+const CONFIG = {
+  SUPABASE_URL : "https://bxviqxrbyjtsrfwtmsbe.supabase.co",
+  SUPABASE_KEY : "sb_publishable_tqCGSzSoWPU-coZr6SGzwQ_MPmv74b-"
+};
+/* storageKey matches the Sessions and Snacks apps, so signing in here signs in everywhere. */
+const sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY,
+  { auth:{ persistSession:true, autoRefreshToken:true, storageKey:'gz_auth' } });
+
+const H = 3600000, OPEN = 9, PKT = 5 * H, HH = 46;
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rs  = n => 'Rs ' + Math.round(Number(n) || 0).toLocaleString('en-PK');
+const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const pk = ms => new Date(ms + PKT);
+const hm = ms => { const p = pk(ms), h = p.getUTCHours(), m = p.getUTCMinutes(); return (h % 12 || 12) + (m ? ':' + String(m).padStart(2, '0') : '') + ' ' + (h < 12 ? 'AM' : 'PM'); };
+function dayStart(offset){ const now = Date.now(), p = pk(now);
+  let base = Date.UTC(p.getUTCFullYear(), p.getUTCMonth(), p.getUTCDate(), OPEN) - PKT; if (now < base) base -= 24 * H; return base + offset * 24 * H; }
+const dayLabel = o => o === 0 ? 'Today' : o === 1 ? 'Tomorrow' : o === -1 ? 'Yesterday' : WD[pk(dayStart(o)).getUTCDay()];
+const dayDate  = o => { const p = pk(dayStart(o)); return p.getUTCDate() + ' ' + MO[p.getUTCMonth()]; };
+
+const S = { user:null, role:null, name:'', tab:'sessions', loaded:{}, err:'', busy:false,
+            machines:[], bookings:[], payments:[], urls:{}, day:0, modal:null, decl:null };
+const isOwner = () => S.role === 'owner';
+const app = document.getElementById('app');
+
+/* ------------------------------------------------------------ sign in */
+function gate(){
+  app.innerHTML = `<div class="gate"><form class="glass" id="login">
+    <div class="brand" style="font-size:24px">404 <span>Gaming Zone</span></div><div class="tag" style="margin-top:4px">Staff sign in</div>
+    <div class="field"><input id="l-email" type="email" placeholder="Email" autocomplete="username" required></div>
+    <div class="field"><input id="l-pass" type="password" placeholder="Password" autocomplete="current-password" required></div>
+    ${S.err ? `<div class="err">${esc(S.err)}</div>` : ''}
+    <button class="btn wide" style="margin-top:16px" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Signing in…' : 'Sign in'}</button>
+    <p style="margin-top:16px;text-align:center"><a class="link" href="./book/">Customer booking page →</a></p></form></div>`;
+}
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'login') return; e.preventDefault();
+  const email = document.getElementById('l-email').value.trim(), password = document.getElementById('l-pass').value;
+  S.busy = true; S.err = ''; gate();
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  S.busy = false;
+  if (error) { S.err = 'Wrong email or password.'; gate(); return; }
+  await enter(data.user);
+});
+async function enter(user){
+  const { data } = await sb.from('profiles').select('name,role').eq('id', user.id).maybeSingle();
+  if (!data) { await sb.auth.signOut(); S.err = 'This account has no access. Ask an owner to add you.'; gate(); return; }
+  S.user = user; S.role = data.role; S.name = data.name;
+  shell(); await loadBookings(); subscribe();
+}
+
+/* -------------------------------------------------------------- shell */
+function shell(){
+  app.innerHTML = `<div class="top"><div class="brand">404 <span>Gaming Zone</span></div>
+    <div class="nav" id="nav"></div>
+    <span class="who">${esc(S.name)} · ${esc(S.role)}</span>
+    <a class="link" href="./book/" target="_blank" rel="noopener">Booking page ↗</a>
+    <button class="link" data-a="out">Sign out</button></div>
+   <div class="pane" id="p-sessions"></div><div class="pane" id="p-snacks"></div><div class="pane" id="p-bookings"><div class="page" id="bk"></div></div>
+   <div id="modal"></div>`;
+  show(S.tab);
+}
+function nav(){
+  const pend = S.bookings.filter(b => b.state === 'pending').length;
+  document.getElementById('nav').innerHTML = [['sessions','Sessions'],['snacks','Snacks'],['bookings','Bookings']].map(([k, l]) =>
+    `<button class="${S.tab === k ? 'on' : ''}" data-a="tab" data-v="${k}">${l}${k === 'bookings' && pend ? `<span class="c">${pend}</span>` : ''}</button>`).join('');
+}
+function show(tab){
+  S.tab = tab; nav();
+  ['sessions','snacks','bookings'].forEach(k => document.getElementById('p-' + k).classList.toggle('on', k === tab));
+  /* The two existing apps load only when first opened, then stay loaded so timers keep running. */
+  if (tab === 'sessions' && !S.loaded.sessions) { document.getElementById('p-sessions').innerHTML = '<iframe src="./admin/" title="Sessions"></iframe>'; S.loaded.sessions = true; }
+  if (tab === 'snacks'   && !S.loaded.snacks)   { document.getElementById('p-snacks').innerHTML   = '<iframe src="./snacks/" title="Snacks"></iframe>';  S.loaded.snacks = true; }
+  if (tab === 'bookings') renderBookings();
+}
+
+/* ----------------------------------------------------------- bookings */
+async function loadBookings(){
+  const from = dayStart(-1);
+  const [m, b] = await Promise.all([
+    sb.from('gz_machines').select('id,platform,games,sort,active').order('sort'),
+    sb.from('gz_bookings').select('*').gte('end_time', from).order('start_time')
+  ]);
+  S.machines = (m.data || []).filter(x => x.active); S.bookings = b.data || [];
+  if (isOwner()) {
+    const p = await sb.from('gz_booking_payments').select('*').eq('status', 'pending');
+    S.payments = p.data || [];
+    for (const pay of S.payments) {
+      if (pay.proof_path && !S.urls[pay.proof_path]) {
+        const u = await sb.storage.from('payment-proofs').createSignedUrl(pay.proof_path, 3600);
+        if (u.data) S.urls[pay.proof_path] = u.data.signedUrl;
+      }
+    }
+  }
+  nav(); if (S.tab === 'bookings') renderBookings();
+}
+let chan = null;
+function subscribe(){
+  if (chan) return;
+  chan = sb.channel('gz-bookings').on('postgres_changes', { event:'*', schema:'public', table:'gz_bookings' }, () => loadBookings()).subscribe();
+  setInterval(() => { if (S.tab === 'bookings' && !S.modal) renderBookings(); }, 60000);
+}
+const payFor = id => S.payments.find(p => p.booking_id === id);
+const when = b => { const p = pk(b.start_time); return WD[p.getUTCDay()] + ' ' + p.getUTCDate() + ' ' + MO[p.getUTCMonth()] + ', ' + hm(b.start_time) + ' – ' + hm(b.end_time); };
+const stLabel = { pending:'Pending check', confirmed:'Confirmed', declined:'Declined', cancelled:'Cancelled', released:'Released', completed:'Completed' };
+
+function renderBookings(){
+  const el = document.getElementById('bk'); if (!el) return;
+  const pend = S.bookings.filter(b => b.state === 'pending');
+  const base = dayStart(S.day), end = base + 24 * H;
+  const dayRows = S.bookings.filter(b => ['pending','confirmed','completed'].includes(b.state) && b.start_time < end && b.end_time > base);
+  const cols = 'grid-template-columns:58px repeat(' + Math.max(1, S.machines.length) + ',minmax(128px,1fr))';
+  const nowTop = (Date.now() - base) / H * HH;
+
+  const queue = !isOwner() ? '' : `<div class="sec"><h2>Payments to check</h2><span class="tag">${pend.length} waiting</span></div>` +
+    (pend.length ? `<div class="grid">` + pend.map(b => { const p = payFor(b.id), url = p && S.urls[p.proof_path];
+      return `<div class="glass card"><div class="proof"><div class="shot">${url ? `<img src="${esc(url)}" alt="Payment screenshot" data-a="zoom" data-v="${esc(url)}">` : 'No<br>screenshot'}</div>
+       <div style="flex:1;min-width:0"><div class="tag">#${esc(b.booking_no)}</div><h3 style="margin-top:2px">${esc(b.customer_name)}</h3>
+       <div class="meta mono">${esc(b.customer_phone)}</div><div class="meta">${esc(b.machine_id)} · ${esc(b.game)} · ${b.players} player${b.players > 1 ? 's' : ''}</div><div class="meta">${esc(when(b))}</div>
+       <div class="meta" style="margin-top:8px">Says they sent <b style="color:var(--text)">${rs(p ? p.amount : 0)}</b> of ${rs(b.total)}</div></div></div>
+       ${S.decl === b.id ? `<div class="tag" style="margin-top:14px">Why?</div><div class="acts">${['Payment not received','Wrong amount','Screenshot not clear'].map(r => `<button class="btn no" data-a="decline" data-v="${esc(b.id)}" data-r="${r}">${r}</button>`).join('')}<button class="btn ghost" data-a="decl" data-v="">Cancel</button></div>`
+        : `<div class="acts"><button class="btn ok" style="flex:1" data-a="approve" data-v="${esc(b.id)}">Approve</button><button class="btn no" data-a="decl" data-v="${esc(b.id)}">Decline</button></div>`}</div>`; }).join('') + `</div>`
+     : `<div class="glass empty">All payments checked. New uploads show here by themselves.</div>`);
+
+  const hrs = []; for (let i = 0; i < 24; i++) hrs.push(base + i * H);
+  const calendar = `<div class="sec"><h2>Calendar</h2><span class="tag">${dayRows.length} booking${dayRows.length === 1 ? '' : 's'}</span></div>
+    <div class="chips">${[-1,0,1,2,3,4,5,6].map(d => `<button class="chip glass ${S.day === d ? 'sel' : ''}" data-a="day" data-v="${d}"><b>${dayLabel(d)}</b><span>${dayDate(d)}</span></button>`).join('')}</div>
+    <div class="glass sched"><div class="v-in"><div class="v-head" style="${cols}"><div></div>${S.machines.map(m => `<div class="v-mh">${esc(m.id)}<small>${dayRows.filter(b => b.machine_id === m.id).length} booked</small></div>`).join('')}</div>
+     <div class="v-body" style="${cols};height:${24 * HH}px;background-size:100% ${HH}px"><div class="v-times">${hrs.map((t, i) => `<span style="top:${i * HH}px">${hm(t)}</span>`).join('')}</div>
+      ${S.machines.map((m, mi) => `<div class="v-col"><div class="closed" style="top:${18 * HH}px;height:${6 * HH}px">${mi === Math.floor(S.machines.length / 2) ? 'Closed<br>3 AM – 9 AM' : ''}</div>
+       ${dayRows.filter(b => b.machine_id === m.id).map(b => { const top = (b.start_time - base) / H * HH, hgt = (b.end_time - b.start_time) / H * HH - 4;
+         return `<button class="blk ${esc(b.state)}" data-a="detail" data-v="${esc(b.id)}" style="top:${top + 2}px;height:${hgt}px"><b>${esc(b.customer_name)}</b><span>${esc(b.game)}${hgt < 58 ? ' · ' + hm(b.start_time) + ' – ' + hm(b.end_time) : ''}</span>${hgt >= 58 ? `<span>${hm(b.start_time)} – ${hm(b.end_time)}</span>` : ''}</button>`; }).join('')}</div>`).join('')}
+      ${nowTop >= 0 && nowTop <= 24 * HH ? `<div class="now" style="top:${nowTop}px"></div>` : ''}</div></div></div>
+    <div class="leg"><span><i style="background:var(--ok)"></i>Confirmed</span><span><i style="background:#f59e0b"></i>Pending check</span><span><i style="background:#94a3b8"></i>Finished</span><span><i style="background:var(--danger)"></i>Now</span><span>Tap a booking for details.</span></div>`;
+
+  const list = `<div class="sec"><h2>Day list</h2><span class="tag">${dayLabel(S.day)} · ${dayDate(S.day)}</span></div><div class="glass" style="overflow-x:auto"><table>
+     <tr><th>Time</th><th>Machine</th><th>Customer</th><th>Phone</th><th>Game</th><th>Players</th><th>Paid</th><th>Collect</th><th>Status</th></tr>
+     ${dayRows.length ? dayRows.map(b => `<tr><td><b>${hm(b.start_time)} – ${hm(b.end_time)}</b></td><td><b>${esc(b.machine_id)}</b></td><td>${esc(b.customer_name)}</td><td class="mono">${esc(b.customer_phone)}</td><td>${esc(b.game)}</td><td>${b.players}</td>
+       <td>${b.state === 'pending' ? '—' : rs(b.paid)}</td><td>${b.state === 'pending' ? '—' : (b.total - b.paid > 0 ? '<b>' + rs(b.total - b.paid) + '</b>' : 'Paid')}</td><td><span class="st ${esc(b.state)}">${esc(stLabel[b.state] || b.state)}</span></td></tr>`).join('')
+      : `<tr><td colspan="9" class="empty">No bookings on this day yet.</td></tr>`}</table></div>`;
+
+  el.innerHTML = queue + calendar + list;
+}
+function modal(){
+  const el = document.getElementById('modal'); if (!el) return;
+  if (!S.modal) { el.innerHTML = ''; return; }
+  if (S.modal.img) { el.innerHTML = `<div class="modal" data-a="close"><div class="sheet"><img class="full" src="${esc(S.modal.img)}" alt="Payment screenshot"><button class="btn ghost" style="margin-top:12px;width:100%" data-a="close">Close</button></div></div>`; return; }
+  const b = S.bookings.find(x => x.id === S.modal.id); if (!b) { S.modal = null; el.innerHTML = ''; return; }
+  const late = Date.now() >= b.start_time + 30 * 60000, canRelease = b.state === 'confirmed' && !b.session_id && b.paid < b.total && late;
+  el.innerHTML = `<div class="modal" data-a="close"><div class="sheet" data-stop="1"><div style="display:flex;justify-content:space-between;align-items:center"><span class="tag">${esc(b.machine_id)} · #${esc(b.booking_no)}</span><span class="st ${esc(b.state)}">${esc(stLabel[b.state] || b.state)}</span></div>
+    <h2 style="margin-top:8px">${esc(b.customer_name)}</h2><div class="meta mono">${esc(b.customer_phone)}</div>
+    <div class="glass card" style="margin-top:14px;padding:4px 16px"><div class="line"><span>Game</span><b>${esc(b.game)}</b></div><div class="line"><span>When</span><b>${esc(when(b))}</b></div><div class="line"><span>Players</span><b>${b.players}</b></div>
+     <div class="line"><span>Total</span><b>${rs(b.total)}</b></div><div class="line"><span>Paid</span><b>${b.state === 'pending' ? 'Being checked' : rs(b.paid)}</b></div><div class="line"><span>To collect</span><b>${b.state === 'pending' ? '—' : rs(Math.max(0, b.total - b.paid))}</b></div>
+     ${b.decided_by ? `<div class="line"><span>${b.state === 'declined' ? 'Declined' : 'Approved'} by</span><b>${esc(b.decided_by)}</b></div>` : ''}</div>
+    ${S.modal.err ? `<div class="err">${esc(S.modal.err)}</div>` : ''}
+    <div class="acts">${canRelease ? `<button class="btn no" data-a="release" data-v="${esc(b.id)}">Release seat (30+ min late)</button>` : ''}<button class="btn ghost" style="flex:1" data-a="close">Close</button></div></div></div>`;
+}
+
+document.addEventListener('click', async e => {
+  const el = e.target.closest('[data-a]'); if (!el) return;
+  const a = el.dataset.a, v = el.dataset.v;
+  if (a === 'close' && e.target.closest('[data-stop]') && !e.target.closest('button')) return;
+  if (a === 'tab') show(v);
+  else if (a === 'out') { await sb.auth.signOut(); location.reload(); }
+  else if (a === 'day') { S.day = +v; renderBookings(); }
+  else if (a === 'decl') { S.decl = v || null; renderBookings(); }
+  else if (a === 'zoom') { S.modal = { img: v }; modal(); }
+  else if (a === 'detail') { S.modal = { id: v }; modal(); }
+  else if (a === 'close') { S.modal = null; modal(); }
+  else if (a === 'approve' || a === 'decline') {
+    el.disabled = true;
+    const { error } = await sb.rpc('gz_decide_booking', { p_id: v, p_approve: a === 'approve', p_reason: a === 'decline' ? el.dataset.r : null });
+    if (error) alertBar(error.message);
+    S.decl = null; await loadBookings();
+  }
+  else if (a === 'release') {
+    const { error } = await sb.rpc('gz_release_booking', { p_id: v });
+    if (error) { S.modal.err = error.message; modal(); } else { S.modal = null; modal(); await loadBookings(); }
+  }
+});
+function alertBar(msg){ const el = document.getElementById('bk'); if (el) el.insertAdjacentHTML('afterbegin', `<div class="err" style="margin-bottom:12px">${esc(msg)}</div>`); }
+
+(async () => {
+  const { data } = await sb.auth.getSession();
+  if (data && data.session && data.session.user) await enter(data.session.user); else gate();
+})();
+</script>
 </body>
 </html>

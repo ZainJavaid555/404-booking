@@ -1,0 +1,3181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#140B33">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="404 Snacks">
+<meta name="description" content="Snacks and drinks counter for 404 Gaming Zone">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>404 Snacks</title>
+<style>
+:root{
+  --bg:#140B33; --bg2:#1B1145; --card:rgba(255,255,255,.06); --card2:rgba(255,255,255,.10);
+  --line:rgba(255,255,255,.12); --txt:#FFFFFF; --dim:#9FA8DA; --acc:#7C4DFF; --acc2:#00BCD4;
+  --ok:#2E7D32; --okl:#4CAF50; --warn:#F9A825; --bad:#E53935;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:linear-gradient(160deg,#140B33 0%,#1B1145 55%,#0A0620 100%);
+  background-attachment:fixed;color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  overscroll-behavior-y:contain;
+}
+.hidden{display:none!important}
+button{font-family:inherit;cursor:pointer;border:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:16px}
+
+/* ---------- LOGIN ---------- */
+#login{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.logo{font-size:44px;font-weight:800;letter-spacing:5px;line-height:1}
+.logo span{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--dim);font-size:12px;letter-spacing:3.5px;margin-top:7px;margin-bottom:32px}
+.pinbox{font-size:34px;letter-spacing:14px;height:60px;display:flex;align-items:center;justify-content:center;
+  background:var(--card);border:1px solid var(--line);border-radius:14px;width:240px;margin-bottom:18px}
+.keys{display:grid;grid-template-columns:repeat(3,78px);gap:12px}
+.keys button{height:64px;border-radius:16px;background:var(--card);border:1px solid var(--line);
+  font-size:24px;font-weight:600;color:#fff}
+.keys button:active{background:var(--card2)}
+.keys .wide{background:linear-gradient(90deg,var(--acc),var(--acc2));font-size:16px;font-weight:700}
+#loginMsg{color:#FF8A80;min-height:20px;margin-top:14px;font-size:13.5px;text-align:center;
+  max-width:330px;line-height:1.45}
+#emailForm{width:100%;max-width:330px;display:flex;flex-direction:column;gap:11px}
+#emailForm input{height:52px;flex:none;padding:0 15px;font-size:16px;border-radius:13px}
+#emailForm .btn{width:100%;height:52px;padding:0;font-size:16px;letter-spacing:.3px;
+  /* .btn.pri sets flex:1, which in a column flex container means flex-basis:0
+     on the HEIGHT and collapses the button. flex:none lets height:52px win. */
+  flex:none;display:flex;align-items:center;justify-content:center;margin-top:3px}
+#emailForm .btn:active{transform:scale(.985)}
+#emailForm .btn:disabled{opacity:.55}
+.authnote{color:var(--dim);font-size:11.5px;text-align:center;margin-top:22px;
+  max-width:330px;line-height:1.5}
+
+/* ---------- SHELL ---------- */
+#app{display:flex;flex-direction:column;height:100vh}
+header{display:flex;align-items:center;gap:10px;padding:12px 14px;
+  background:rgba(0,0,0,.32);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+header .h-title{font-weight:800;font-size:17px;flex:1;line-height:1.15}
+header .h-title small{display:block;font-weight:500;font-size:11px;color:var(--dim);letter-spacing:1px}
+.badge{font-size:10px;padding:4px 9px;border-radius:20px;font-weight:800;letter-spacing:.5px}
+.badge.owner{background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.badge.staff{background:#37474F}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--okl);flex:none}
+.dot.off{background:var(--warn)}
+.iconbtn{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:15px}
+
+main{flex:1;overflow-y:auto;padding:12px 12px 130px;-webkit-overflow-scrolling:touch}
+
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(10,6,32,.97);
+  border-top:1px solid var(--line);z-index:25;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;padding:11px 4px;background:none;font-size:10.5px;color:var(--dim);font-weight:600}
+nav button .ic{display:block;font-size:20px;margin-bottom:3px}
+nav button.on{color:#fff}
+nav button.on .ic{filter:drop-shadow(0 0 9px var(--acc2))}
+
+/* ---------- ITEM GRID ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:11px 7px;text-align:center;position:relative;transition:transform .08s}
+.item.inCart{border-color:var(--acc2);background:rgba(0,188,212,.10)}
+/* quantity controls: the ONLY way to change the basket */
+.qrow{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-top:9px}
+.qb{width:40px;height:40px;border-radius:12px;font-size:23px;font-weight:800;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.10);border:1px solid var(--line);color:#fff}
+.qb:active{transform:scale(.9)}
+.qb.plus{background:linear-gradient(135deg,var(--acc),var(--acc2));border-color:transparent}
+.qb:disabled{opacity:.25}
+.qn{font-size:18px;font-weight:800;min-width:20px;text-align:center}
+.item .ico{width:40px;height:40px;margin:0 auto;display:block}
+.item .ico svg{width:100%;height:100%;display:block}
+.ico img{width:100%;height:100%;object-fit:contain;display:block}
+.item .ico.ph{width:46px;height:46px}
+.legacy{font-size:30px;line-height:1}
+.item .nm{font-size:12px;font-weight:600;margin-top:4px;line-height:1.25;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:30px}
+.item .pr{font-size:14px;font-weight:800;color:var(--acc2);margin-top:3px}
+.item .st{font-size:10px;color:var(--dim);margin-top:2px}
+.item .st.low{color:var(--warn);font-weight:700}
+.item .st.out{color:var(--bad);font-weight:700}
+.item.dis{opacity:.4}
+.qbadge{position:absolute;top:-6px;right:-6px;background:linear-gradient(90deg,var(--acc),var(--acc2));
+  min-width:24px;height:24px;border-radius:12px;font-size:12px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;padding:0 6px;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+
+/* ---------- CART ---------- */
+#cartBar{position:fixed;left:0;right:0;bottom:60px;padding:9px 12px;z-index:26;
+  background:rgba(10,6,32,.97);border-top:1px solid var(--line)}
+#cartBar .row{display:flex;align-items:center;gap:10px}
+.btn{border-radius:13px;padding:13px 16px;font-weight:800;font-size:15px}
+.btn.pri{background:linear-gradient(90deg,var(--acc),var(--acc2));flex:1}
+.btn.gr{background:linear-gradient(90deg,#2E7D32,#43A047);flex:1}
+.btn.gh{background:var(--card);border:1px solid var(--line)}
+.btn.rd{background:var(--bad)}
+.btn:disabled{opacity:.4}
+.total{font-size:21px;font-weight:800}
+.total small{font-size:11px;color:var(--dim);display:block;font-weight:600}
+
+/* ---------- LIVE SESSIONS ---------- */
+.sesswrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:11px}
+.sesscard{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);
+  border-radius:15px;padding:13px;color:inherit;font-family:inherit}
+.sesscard:active{background:var(--card2)}
+.sesscard.over{border-color:rgba(229,57,53,.55);background:rgba(229,57,53,.08)}
+.sctop{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.plat{font-size:10px;font-weight:800;letter-spacing:.5px;padding:3px 8px;border-radius:20px;background:#2a3566;color:#cfe0ff}
+.plat.ps5{background:#153a7a;color:#a8ccff}.plat.ps4{background:#123055;color:#9ec6f5}
+.plat.xbox{background:#14401d;color:#a5e8b4}.plat.pc{background:#3a2a5e;color:#d0bcff}
+.sctime{font-size:12px;font-weight:700;color:var(--dim);font-variant-numeric:tabular-nums}
+.sctime.up{color:var(--bad)}
+.scname{font-size:16px;font-weight:700;margin:9px 0 8px;line-height:1.25;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.scfoot{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sctab{font-size:12px;font-weight:700;color:var(--acc2)}
+.sctab.none{color:var(--dim);font-weight:500}
+.scadd{font-size:12px;font-weight:800;color:var(--txt);opacity:.75}
+.tl-none{padding:16px 0;color:var(--dim);font-size:13px;text-align:center}
+.tline{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.tl-name{flex:1;min-width:0;font-size:14px;font-weight:600}
+.tl-name i{display:block;font-style:normal;font-size:11px;color:var(--dim);margin-top:1px}
+.tl-btn{width:34px;height:34px;border-radius:10px;background:var(--card);border:1px solid var(--line);
+  color:var(--txt);font-size:18px;font-weight:700;flex:none}
+.tl-q{min-width:26px;text-align:center;font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}
+.tl-amt{min-width:74px;text-align:right;font-weight:800;font-size:14px}
+.tl-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;
+  padding-top:11px;border-top:1px solid var(--line);font-size:13px;color:var(--dim)}
+.tl-total b{font-size:22px;color:var(--acc2)}
+.hintbar{margin-top:12px;padding:10px 12px;border-radius:11px;background:rgba(255,255,255,.04);
+  border:1px solid var(--line);font-size:12px;color:var(--dim);line-height:1.45}
+.tabbar{display:flex;align-items:center;gap:10px;margin-bottom:11px;padding:10px 12px;
+  border-radius:13px;background:rgba(0,188,212,.09);border:1px solid rgba(0,188,212,.32)}
+.tabback{background:var(--card);border:1px solid var(--line);border-radius:9px;
+  width:32px;height:32px;font-size:19px;color:var(--txt);flex:none;line-height:1}
+.tabwho b{display:block;font-size:14px}
+.tabwho i{display:block;font-style:normal;font-size:11px;color:var(--dim);margin-top:1px}
+
+/* ---------- LATE ENTRY ---------- */
+.modeseg{display:flex;background:rgba(0,0,0,.3);border-radius:12px;padding:3px;margin-bottom:11px}
+.modeseg button{flex:1;padding:9px 6px;border-radius:10px;background:none;font-size:12.5px;
+  font-weight:700;color:var(--dim);display:flex;align-items:center;justify-content:center;gap:6px}
+.modeseg button.on{background:var(--acc);color:#fff}
+.modeseg button.on[data-mode="late"]{background:#8e5cf7}
+.latebox{margin-bottom:12px;padding:12px;border-radius:13px;
+  background:rgba(142,92,247,.10);border:1px solid rgba(142,92,247,.38)}
+.latebox .lrow{display:flex;gap:9px}
+.latebox .lf{flex:1;min-width:0}
+.latebox label{display:block;font-size:11px;color:var(--dim);margin-bottom:4px;font-weight:600}
+.latebox input{width:100%;padding:10px;border-radius:10px;background:rgba(0,0,0,.32);
+  border:1px solid var(--line);color:var(--txt);font-size:14px;font-family:inherit}
+.latehint{margin-top:9px;font-size:11.5px;line-height:1.45;color:var(--dim)}
+.latehint.bad{color:#ff8a80}
+.latehint.good{color:var(--acc2)}
+.latetag{display:inline-block;padding:1px 6px;border-radius:5px;font-size:9.5px;font-weight:800;
+  letter-spacing:.4px;background:rgba(142,92,247,.22);color:#c4a6ff;border:1px solid rgba(142,92,247,.45);
+  vertical-align:middle;margin-left:5px}
+
+/* ---------- CASH / ONLINE SHEET ---------- */
+.paysheet-backdrop{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);
+  display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .18s}
+.paysheet-backdrop.on{opacity:1}
+.paysheet{width:min(460px,100%);background:var(--bg2);border-top:1px solid var(--line);
+  border-radius:20px 20px 0 0;padding:20px 16px calc(18px + env(safe-area-inset-bottom));
+  transform:translateY(14px);transition:transform .22s}
+.paysheet-backdrop.on .paysheet{transform:none}
+@media(min-width:560px){.paysheet-backdrop{align-items:center}.paysheet{border-radius:20px;border:1px solid var(--line)}}
+.paysheet-amount{font-size:30px;font-weight:800;color:var(--acc2);letter-spacing:-.5px}
+.paysheet-q{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0}
+.paysheet-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.paysheet-btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:20px 10px;
+  border-radius:14px;font-size:15px;font-weight:800;border:2px solid var(--line);
+  background:var(--card);color:var(--txt)}
+.paysheet-btn span{font-size:26px;line-height:1}
+.paysheet-btn.cash:active{border-color:var(--okl);background:rgba(76,175,80,.14);color:var(--okl)}
+.paysheet-btn.online:active{border-color:var(--acc2);background:rgba(0,188,212,.14);color:var(--acc2)}
+.paysheet-cancel{width:100%;margin-top:10px;padding:12px;border-radius:12px;
+  border:1px solid var(--line);background:none;font-size:14px;font-weight:700;color:var(--dim)}
+.paytag{font-size:10px;font-weight:800;padding:2px 7px;border-radius:9px;margin-left:6px;vertical-align:middle}
+.paytag.cash{background:rgba(76,175,80,.18);color:#7bd07f}
+.paytag.online{background:rgba(0,188,212,.18);color:#5fd8e6}
+.paytag.none{background:rgba(249,168,37,.18);color:#f9c65b}
+.paytag.split{background:rgba(149,117,255,.18);color:#c0aaff}
+/* Some cash, some online. A wide third button, so Cash and Online stay the
+   big obvious pair staff hit all night without looking. */
+.paysheet-btn.split{flex-direction:row;gap:8px;width:100%;margin-top:10px;padding:14px 10px;font-size:14px}
+.paysheet-btn.split span{font-size:18px}
+.paysheet-btn.split:active{border-color:#9575ff;background:rgba(149,117,255,.14);color:#c0aaff}
+.paysplit-box{margin-top:12px;padding:14px;border-radius:14px;
+  border:2px solid rgba(149,117,255,.35);background:rgba(149,117,255,.06)}
+.paysplit-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.paysplit-row label{flex:0 0 76px;font-size:13px;font-weight:800;color:var(--txt)}
+.paysplit-row input{flex:1 1 auto;min-width:0;padding:12px;border-radius:10px;
+  border:1px solid var(--line);background:var(--bg);color:var(--txt);
+  font-family:inherit;font-size:17px;font-weight:800}
+.paysplit-hint{font-size:12.5px;font-weight:700;margin:2px 0 10px;min-height:17px;color:var(--dim)}
+.paysplit-hint.ok{color:var(--okl)}
+.paysplit-hint.bad{color:var(--warn)}
+.paysheet-btn.confirm{flex-direction:row;width:100%;padding:14px;margin:0;
+  border-color:var(--acc2);background:var(--acc2);color:#04222a}
+.paysheet-btn.confirm:disabled{opacity:.4}
+.line .t0{display:flex;align-items:center;gap:7px;margin-bottom:3px}
+.sesstag{font-size:9.5px;font-weight:800;letter-spacing:.5px;padding:2px 7px;border-radius:20px;
+  background:#153a7a;color:#a8ccff}
+.sesstag.counter{background:rgba(255,255,255,.08);color:var(--dim)}
+.sessname{font-size:12px;font-weight:700;color:var(--acc2)}
+.line .t3{font-size:11px;color:var(--bad);margin-top:2px}
+.paysplit{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.psi{padding:12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+.psi.cash{border-color:rgba(76,175,80,.35);background:rgba(76,175,80,.07)}
+.psi.online{border-color:rgba(0,188,212,.35);background:rgba(0,188,212,.07)}
+.psl{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--dim)}
+.psv{font-size:20px;font-weight:800;margin-top:3px}
+.psi.cash .psv{color:#7bd07f}
+.psi.online .psv{color:var(--acc2)}
+.pss{font-size:10.5px;color:var(--dim);margin-top:1px}
+
+/* ---------- CARDS / LISTS ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:13px;margin-bottom:11px}
+.card h3{margin:0 0 9px;font-size:13px;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase}
+.stat{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.stat:last-child{border:none}
+.stat .k{color:var(--dim);font-size:13px}
+.stat .v{font-weight:800;font-size:17px}
+.big{font-size:31px;font-weight:800;background:linear-gradient(90deg,var(--acc),var(--acc2));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+
+.line{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.line:last-child{border:none}
+.line .ico{width:30px;height:30px;flex:none}
+.line .ico svg{width:100%;height:100%;display:block}
+.line .ico.ph{width:36px;height:36px}
+.line .mid{flex:1;min-width:0}
+.line .t1{font-size:14px;font-weight:600}
+.line .t2{font-size:11px;color:var(--dim);margin-top:1px}
+.line .amt{font-weight:800;font-size:15px}
+/* Only the ITEMS are struck through. Who voided it and why must stay easy
+   to read - that is the part you go looking for. */
+/* text-decoration must be cleared HERE: a strike drawn on the parent cannot
+   be removed by a child, so scoping it to .t1 alone is not enough. */
+.line.void{opacity:1;text-decoration:none}
+.line.void .t1{text-decoration:line-through;opacity:.5}
+.line.void .amt{text-decoration:line-through;opacity:.5}
+.line.void .t0,.line.void .t2{opacity:.75}
+.line.void .t3{opacity:1;color:var(--bad);font-weight:600}
+.void{opacity:.45;text-decoration:line-through}
+.tag{font-size:9px;background:var(--bad);padding:2px 6px;border-radius:9px;font-weight:800;vertical-align:middle}
+
+/* ---------- FORMS ---------- */
+label{display:block;font-size:11px;color:var(--dim);margin:9px 0 4px;letter-spacing:.5px;font-weight:600}
+input[type=text],input[type=number],input[type=email],input[type=password],
+input[type=tel],input[type=search],select,textarea{
+  width:100%;padding:11px;border-radius:11px;-webkit-appearance:none;appearance:none;
+  background:rgba(0,0,0,.35);border:1px solid var(--line);color:#fff;
+  transition:border-color .15s, box-shadow .15s, background-color .15s}
+input:focus,select:focus,textarea:focus{
+  outline:none;border-color:var(--acc2);background:rgba(0,0,0,.5);
+  box-shadow:0 0 0 3px rgba(0,188,212,.16)}
+input::placeholder,textarea::placeholder{color:#7B85B8}
+/* the browser's saved-password fill otherwise paints these white */
+input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus{
+  -webkit-text-fill-color:#fff;caret-color:#fff;
+  -webkit-box-shadow:0 0 0 1000px #191046 inset;
+  transition:background-color 9999s ease-in-out 0s}
+.frow{display:flex;gap:9px}.frow>div{flex:1}
+
+/* ---------- MODAL ---------- */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:60;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:#1B1145;border:1px solid var(--line);border-radius:20px 20px 0 0;padding:18px;
+  width:100%;max-width:520px;max-height:92vh;overflow-y:auto}
+.sheet h2{margin:0 0 12px;font-size:19px}
+.mrow{display:flex;gap:9px;margin-top:15px}.mrow .btn{flex:1}
+.emopick{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:5px;
+  max-height:260px;overflow-y:auto;background:rgba(0,0,0,.28);padding:8px;border-radius:11px}
+.emopick button{padding:7px 3px 5px;background:none;border-radius:9px;border:1px solid transparent}
+.emopick button img{width:44px;height:44px;object-fit:contain;display:block;margin:0 auto}
+.emopick button span{display:block;font-size:9px;color:var(--dim);margin-top:3px;text-transform:capitalize}
+.emopick button.on{background:var(--acc);border-color:#fff}
+.emopick button.on span{color:#fff;font-weight:700}
+.tintrow{display:flex;gap:7px;margin-top:5px;flex-wrap:wrap}
+.tintrow button{width:34px;height:34px;border-radius:9px;border:2px solid transparent}
+.tintrow button.on{border-color:#fff}
+.photorow{display:flex;gap:11px;align-items:center;margin-top:5px}
+.thumb{width:76px;height:76px;border-radius:13px;background:rgba(0,0,0,.35);
+  border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;flex:none;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:contain}
+.thumb svg{width:40px;height:40px}
+.photorow .btn{padding:10px 12px;font-size:13px}
+
+#toast{position:fixed;bottom:135px;left:50%;transform:translateX(-50%);
+  background:#2E7D32;padding:11px 20px;border-radius:22px;font-weight:700;font-size:14px;
+  z-index:90;opacity:0;transition:opacity .25s;pointer-events:none;box-shadow:0 4px 18px rgba(0,0,0,.5);max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+#toast.err{background:var(--bad)}
+.empty{text-align:center;color:var(--dim);padding:38px 16px;font-size:14px}
+.empty .e{font-size:42px;display:block;margin-bottom:10px}
+.seg{display:flex;background:rgba(0,0,0,.3);border-radius:11px;padding:3px;margin-bottom:11px}
+.seg button{flex:1;padding:8px;border-radius:9px;background:none;font-size:12.5px;font-weight:700;color:var(--dim)}
+.seg button.on{background:var(--acc);color:#fff}
+.daybar{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--acc),var(--acc2));margin-top:5px}
+.dayrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.dayrow{cursor:pointer}
+.dayrow:last-child{border:none}
+.dchev{color:var(--dim);font-size:13px;transition:transform .18s;flex:none}
+.dayrow.open .dchev{transform:rotate(180deg)}
+.daydetail{display:none;padding:2px 0 10px 4px}
+.daydetail.open{display:block}
+.dsale{display:flex;align-items:baseline;gap:9px;padding:6px 0;font-size:12px;
+  border-bottom:1px solid rgba(255,255,255,.05)}
+.dsale:last-child{border:none}
+.dsale.void{opacity:1}
+.dsale.void .dsw-what,.dsale.void .dsw-amt{text-decoration:line-through;opacity:.5}
+.dsw-time{color:var(--dim);flex:0 0 42px;font-variant-numeric:tabular-nums}
+.dsw-who{flex:0 0 auto;max-width:38%;color:var(--acc2);font-weight:700;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dsw-what{flex:1;min-width:0;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dsw-amt{font-weight:800;flex:none}
+/* ---- One delivery, and what was earned while it was on the shelf ---- */
+.lot-title{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--dim);margin:16px 0 8px}
+.lot{border:1px solid var(--line);border-radius:12px;padding:10px 11px;margin-bottom:8px;
+  background:rgba(255,255,255,.02)}
+.lot-h{display:flex;align-items:baseline;gap:8px;font-size:12.5px}
+.lot-d{color:var(--dim);flex:0 0 auto;font-variant-numeric:tabular-nums}
+.lot-q{flex:1;min-width:0;color:var(--txt);font-weight:700;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.lot-c{font-weight:800;flex:none}
+.lot-b{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.lot-b>div{display:flex;flex-direction:column;gap:2px}
+.lk{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+.lv{font-size:14px;font-weight:800;color:var(--txt);font-variant-numeric:tabular-nums}
+.lv.good{color:var(--okl)}
+.lot-f{margin-top:7px;font-size:11px;color:var(--dim)}
+.lothint{font-size:12.5px;color:var(--dim);line-height:1.55;padding:10px 0}
+
+/* ---- Stock Added: the delivery record, on the Reports page ---- */
+.stin-head{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  padding:10px 12px;margin-bottom:12px;border-radius:12px;
+  background:rgba(149,117,255,.09);border:1px solid rgba(149,117,255,.22)}
+.stin-head>div{display:flex;flex-direction:column;gap:3px;text-align:center}
+.stin-hk{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.stin-hv{font-size:16px;font-weight:800;color:var(--txt);font-variant-numeric:tabular-nums}
+.stin-hv.money{color:#c0aaff}
+.stin-day{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  margin:14px 0 6px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+.stin-day:first-child{margin-top:0}
+.stin-date{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+.stin-daytot{font-size:12.5px;font-weight:800;color:#c0aaff;font-variant-numeric:tabular-nums}
+.stin{display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer}
+.stin .ico{flex:0 0 auto}
+.stin-mid{flex:1;min-width:0}
+.stin-name{font-size:13.5px;font-weight:700;color:var(--txt);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stin-sub{font-size:12px;color:var(--dim);margin-top:2px;font-variant-numeric:tabular-nums}
+.stin-warn{color:var(--warn)}
+.stin-amt{font-size:14px;font-weight:800;color:var(--txt);flex:none;font-variant-numeric:tabular-nums}
+.stin-foot{margin-top:14px;padding-top:10px;border-top:1px solid var(--line);
+  font-size:11.5px;color:var(--dim);line-height:1.5}
+.stin-mid[data-stockitem]{cursor:pointer}
+.stin-x{flex:none;width:26px;height:26px;border-radius:8px;border:1px solid var(--line);
+  background:none;color:var(--dim);font-size:12px;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+.stin-x:active{border-color:var(--bad);color:var(--bad);background:rgba(244,67,54,.12)}
+.stin.gone .stin-name{color:var(--dim);font-style:italic}
+.ico.ghost{display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.05);color:var(--dim);font-size:16px}
+/* The delivery filter, a size down from the one that drives the whole page,
+   so it reads as belonging to this card rather than competing with it. */
+.hd-pick{display:flex;flex-direction:column;gap:6px}
+.hd-pick label{font-size:12px;font-weight:700;color:var(--dim);margin:0}
+.hd-pick input[type=date]{width:100%;padding:12px;border-radius:11px;border:1px solid var(--line);
+  background:var(--bg);color:var(--txt);font-family:inherit;font-size:16px;font-weight:700}
+.hd-hint{font-size:11.5px;color:var(--dim);margin-top:8px;line-height:1.5}
+.hd-row .amt{min-width:34px;text-align:right}
+.hd-val{flex:0 0 78px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;color:#c0aaff;font-size:13px}
+.seg.sub{margin:0 0 12px}
+.seg.sub button{padding:7px 4px;font-size:12px}
+.dayrow .dd{flex:1;min-width:0}
+.dayrow .dt{font-size:13.5px;font-weight:700}
+.dayrow .ds{font-size:11px;color:var(--dim);margin-top:1px}
+.dayrow .dv{font-weight:800;font-size:15px;text-align:right}
+.dayrow .dp{font-size:10.5px;color:var(--okl);font-weight:700}
+.today-hi{color:var(--acc2)}
+.banner{background:rgba(249,168,37,.16);border:1px solid rgba(249,168,37,.45);color:#FFD54F;
+  padding:9px 12px;border-radius:11px;font-size:12px;margin-bottom:11px;line-height:1.45}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="login">
+  <div class="logo">4<span>0</span>4</div>
+  <div class="sub">SNACKS &amp; DRINKS</div>
+  <div id="pinWrap">
+    <div class="pinbox" id="pinBox"></div>
+    <div class="keys" id="keys"></div>
+  </div>
+  <div id="emailForm" class="hidden">
+    <input type="email" id="authEmail" placeholder="Email" autocomplete="username" inputmode="email">
+    <input type="password" id="authPass" placeholder="Password" autocomplete="current-password">
+    <button class="btn pri" id="authGo">Sign in</button>
+  </div>
+  <div id="loginMsg"></div>
+  <div class="authnote hidden" id="authNote">You only need to sign in once on this device.</div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hidden">
+  <header>
+    <div class="dot" id="netDot"></div>
+    <div class="h-title">404 Snacks<small id="hSub">—</small></div>
+    <span class="badge" id="roleBadge">—</span>
+    <button class="iconbtn" id="btnSound" title="Sound on / off">🔊</button>
+    <button class="iconbtn" id="btnOut" title="Log out">⏻</button>
+  </header>
+
+  <main id="main"></main>
+
+  <div id="cartBar" class="hidden">
+    <div class="row">
+      <div class="total" id="cartTotal">Rs. 0<small id="cartCount">empty</small></div>
+      <button class="btn gh" id="btnClear">Clear</button>
+      <button class="btn gr" id="btnPay">Checkout</button>
+    </div>
+  </div>
+
+  <nav id="nav"></nav>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* =====================================================================
+   404 GAMING ZONE — SNACKS & DRINKS
+   Single-file app. Works offline. Optional Supabase sync.
+   ===================================================================== */
+
+/* ---------- 1. CONFIG — EDIT THIS ---------- */
+const CONFIG = {
+  // Each person gets their own PIN so every sale and void is attributable.
+  USERS : [
+    { pin:"4040", role:"owner" },
+    { pin:"1111", role:"staff" }
+  ],
+  DAY_START_HOUR : 4,   // the shop trades 12pm-3am: a "day" runs 4am to 4am
+  OWNER_PIN : "4040",   // kept for reference
+  STAFF_PIN : "1111",
+  SUPABASE_URL : "https://bxviqxrbyjtsrfwtmsbe.supabase.co",
+  SUPABASE_KEY : "sb_publishable_tqCGSzSoWPU-coZr6SGzwQ_MPmv74b-",
+  LOW_STOCK : 5,
+  CURRENCY : "Rs."
+};
+
+/* ---------- 2. STATE ---------- */
+let role = null, user = null, tab = "sell", cart = {}, items = [], sales = [], sb = null, online = false;
+let period = "today";   // Reports filter: today | week | month | all
+let shown  = 100;       // how many sales rows are listed; grows with "Show more"
+const LS = { items:"g404_items", sales:"g404_sales", queue:"g404_queue", cart:"g404_cart", profile:"g404_profile" };
+
+/* No sample items. The owner adds everything from the Items tab.
+   An empty list is a valid, respected state — it is never auto-filled. */
+const PRODUCTS = [["7up_345", "7up 345ml"], ["aquafina_500", "Aquafina 500ml"], ["big_apple_345", "Big Apple 345ml"], ["big_lychee_345", "Big Lychee 345ml"], ["booster_regular", "Booster Regular"], ["chilli_mili", "Chilli Mili"], ["choco_licious", "Choco Licious"], ["chocolate_chip_cookie", "Chocolate Chip Cookie"], ["chocolate_sandwich", "Chocolate Sandwich"], ["chocolato_biscuit", "Chocolato Biscuit"], ["click_biscuit", "Click biscuit"], ["cocomo", "Cocomo"], ["coke_345", "Coke 345ml"], ["dew_345", "Dew 345ml"], ["hearts_biscuit", "Hearts biscuit"], ["kurkray_red-black", "Kurkray Red/black"], ["kurkuray_green", "Kurkuray Green"], ["lays_classic", "Lays Classic"], ["lays_french_cheese", "Lays French Cheese"], ["lays_masala", "Lays Masala"], ["lays_yogurt", "Lays Yogurt"], ["lemon_malt", "Lemon Malt"], ["lemon_sandwich", "Lemon Sandwich"], ["party_biscuit", "Party biscuit"], ["pepsi_345", "Pepsi 345ml"], ["prince_biscuit", "Prince biscuit"], ["salva_20rs", "Salva 20Rs"], ["salva_50rs", "Salva 50Rs"], ["slice_juice", "Slice Juice"], ["super_biscuit", "Sooper Biscuit"], ["super_cake", "Sooper Cake"], ["super_chocolate", "Sooper Chocolate"], ["sting_500", "Sting 500ml"], ["wavy", "Wavy"]];
+const FALLBACK = "<svg viewBox=\"0 0 32 32\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"5.5\" y=\"11\" width=\"21\" height=\"16.5\" rx=\"2\" fill=\"#78909C\"/><path d=\"M5.5 11l2.6-5.5h15.8L26.5 11h-21z\" fill=\"#000\" opacity=\".18\"/><rect x=\"14.4\" y=\"11\" width=\"3.2\" height=\"16.5\" fill=\"#000\" opacity=\".2\"/></svg>";
+/* Bump this whenever a product image is replaced. The filenames stay the same,
+   so without a version the browser keeps showing the old picture forever. */
+const IMG_VER = "2";
+const stamp = u => (typeof u === "string" && u.startsWith("./products/")) ? u + "?v=" + IMG_VER : u;
+
+function itemVisual(i, cls){
+  if(i && i.photo) return '<span class="'+cls+' ph"><img src="'+esc(stamp(safeSrc(i.photo)))+'" alt=""></span>';
+  return '<span class="'+cls+'">'+FALLBACK+'</span>';
+}
+/* Only allow image sources we generate ourselves. Blocks javascript:/onerror
+   payloads once rows start arriving from the database. */
+function safeSrc(u){
+  u = String(u||"");
+  return (/^\.\/products\/[A-Za-z0-9_\-]+\.png$/.test(u) || /^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/.test(u)) ? u : "";
+}
+
+/* The 17 real products, with photos cut from your snacks sheet.
+   Loaded once on a device that has never saved anything. Prices start at 0. */
+const FIRST_RUN = [
+  ["Click biscuit","click_biscuit","biscuit","#C68642",8],
+  ["Prince biscuit","prince_biscuit","biscuit","#C68642",0],
+  ["Lemon Sandwich","lemon_sandwich","sandwich_biscuit","#F9A825",7],
+  ["Chocolate Sandwich","chocolate_sandwich","sandwich_biscuit","#4E342E",8],
+  ["Chocolate Chip Cookie","chocolate_chip_cookie","biscuit","#C68642",5],
+  ["Party biscuit","party_biscuit","biscuit","#C68642",8],
+  ["Sooper Biscuit","super_biscuit","biscuit","#C68642",8],
+  ["Sooper Chocolate","super_chocolate","choc_biscuit","",8],
+  ["Sooper Cake","super_cake","cake","#5D4037",10],
+  ["Cocomo","cocomo","chips","#D32F2F",6],
+  ["Hearts biscuit","hearts_biscuit","biscuit","#C68642",20],
+  ["Salva 20Rs","salva_20rs","chips","#2E7D32",16],
+  ["Salva 50Rs","salva_50rs","chips","#5E35B1",21],
+  ["Lays Yogurt","lays_yogurt","chips","#7CB342",8],
+  ["Wavy","wavy","chips","#5E35B1",0],
+  ["Kurkuray Green","kurkuray_green","puffs","#2E7D32",18],
+  ["Kurkray Red/black","kurkray_red-black","puffs","#C62828",5],
+  ["Pepsi 345ml","pepsi_345","","",0],
+  ["Coke 345ml","coke_345","","",0],
+  ["7up 345ml","7up_345","","",0],
+  ["Dew 345ml","dew_345","","",0],
+  ["Booster Regular","booster_regular","","",0],
+  ["Sting 500ml","sting_500","","",0],
+  ["Aquafina 500ml","aquafina_500","","",0],
+  ["Slice Juice","slice_juice","","",0],
+  ["Lemon Malt","lemon_malt","","",0],
+  ["Choco Licious","choco_licious","","",0],
+  ["Chocolato Biscuit","chocolato_biscuit","","",0],
+  ["Chilli Mili","chilli_mili","","",0],
+  ["Lays French Cheese","lays_french_cheese","","",0],
+  ["Lays Masala","lays_masala","","",0],
+  ["Lays Classic","lays_classic","","",0],
+  ["Big Apple 345ml","big_apple_345","","",0],
+  ["Big Lychee 345ml","big_lychee_345","","",0]
+];
+
+
+/* ---------- SOUND ----------
+   Every sound is synthesised on the fly, so this costs no downloads and works
+   offline. Kept short and quiet — it should feel like feedback, not noise. */
+const Sound = (function(){
+  let ctx = null, on = true;
+  try{ on = localStorage.getItem("g404_sound") !== "0"; }catch(e){}
+
+  function audio(){
+    try{
+      if(!ctx){
+        const C = window.AudioContext || window.webkitAudioContext;
+        if(!C) return null;
+        ctx = new C();
+      }
+      if(ctx.state === "suspended") ctx.resume();
+      return ctx;
+    }catch(e){ return null; }
+  }
+
+  function tone(freq, dur, vol, type, delay, slideTo){
+    if(!on) return;
+    const c = audio(); if(!c) return;
+    try{
+      const t0 = c.currentTime + (delay || 0);
+      const osc = c.createOscillator(), gain = c.createGain();
+      osc.type = type || "sine";
+      osc.frequency.setValueAtTime(freq, t0);
+      if(slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.linearRampToValueAtTime(vol, t0 + 0.008);      // quick fade in
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); // soft tail
+      osc.connect(gain); gain.connect(c.destination);
+      osc.start(t0); osc.stop(t0 + dur + 0.03);
+    }catch(e){}
+  }
+
+  return {
+    get enabled(){ return on; },
+    unlock(){ audio(); },
+    toggle(){
+      on = !on;
+      try{ localStorage.setItem("g404_sound", on ? "1" : "0"); }catch(e){}
+      if(on) tone(760, 0.07, 0.05);
+      return on;
+    },
+    tap()    { tone(620, 0.05, 0.035); },                       // any small button
+    add()    { tone(700, 0.07, 0.055, "sine", 0, 990); },       // item added
+    drop()   { tone(520, 0.07, 0.045, "sine", 0, 380); },       // item removed
+    nav()    { tone(560, 0.05, 0.03); },                        // switching tabs
+    sale()   { tone(660, 0.10, 0.055); tone(880, 0.10, 0.055, "sine", 0.085);
+               tone(1175, 0.18, 0.05, "sine", 0.17); },         // sale complete
+    voided() { tone(520, 0.13, 0.05, "sine", 0, 300); },        // sale voided
+    error()  { tone(210, 0.10, 0.055, "triangle");
+               tone(165, 0.15, 0.05, "triangle", 0.09); },      // blocked / warning
+    welcome(){ tone(590, 0.09, 0.045); tone(880, 0.14, 0.045, "sine", 0.08); }
+  };
+})();
+
+/* ---------- 3. HELPERS ---------- */
+const $ = id => document.getElementById(id);
+const money = n => CONFIG.CURRENCY + " " + Math.round(Number(n)||0).toLocaleString("en-US");
+/* PKR has no paisa in practice — force whole, non-negative integers. */
+const rupees = v => { const n = Math.round(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
+const whole  = v => { const n = Math.round(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const pad2 = n => String(n).padStart(2,"0");
+/* Local calendar-day key. Never use toISOString here: it is UTC and would push
+   evening sales in Pakistan (UTC+5) into the previous day. */
+/* The shop trades 12pm-3am, so a business day runs from DAY_START_HOUR to
+   DAY_START_HOUR. A sale at 1am belongs to the evening that produced it. */
+const bizDate = d => { const x = new Date(d); x.setHours(x.getHours() - CONFIG.DAY_START_HOUR); return x; };
+const keyOf = d => { const x = bizDate(d); return x.getFullYear()+"-"+pad2(x.getMonth()+1)+"-"+pad2(x.getDate()); };
+const todayKey = () => keyOf(new Date());
+const dayOf = iso => iso ? keyOf(new Date(iso)) : "";
+const startOfDay = d => { const x = bizDate(d); x.setHours(0,0,0,0); x.setHours(x.getHours() + CONFIG.DAY_START_HOUR); return x; };
+/* Plain calendar date for <input type="date">, which wants local yyyy-mm-dd
+   and not a business day. Same UTC trap as above, so built by hand. */
+const ymdLocal = d => d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+
+/* Start date for the chosen filter. */
+function periodStart(p){
+  const now = new Date();
+  if(p === "today") return startOfDay(now);
+  if(p === "week"){                     // this week, Monday to Sunday
+    const b = bizDate(now);
+    const backToMonday = (b.getDay() + 6) % 7;   // 0 = Monday
+    const s = startOfDay(now); s.setDate(s.getDate() - backToMonday); return s;
+  }
+  if(p === "month"){ const b = bizDate(now); const s = new Date(b.getFullYear(), b.getMonth(), 1); s.setHours(CONFIG.DAY_START_HOUR); return s; }
+  return new Date(0);
+}
+const PERIOD_LABEL = {today:"Today", week:"This week", month:"This month", all:"All time"};
+
+/* Completed (non-void) sales inside the chosen filter. */
+function salesIn(p){
+  const from = periodStart(p).getTime();
+  return sales.filter(s => !s.voided && s.created_at && new Date(s.created_at).getTime() >= from);
+}
+function niceDay(key){
+  const d = new Date(key + "T00:00:00");
+  const t = keyOf(new Date());
+  const y = keyOf(new Date(Date.now() - 864e5));
+  if(key === t) return "Today";
+  if(key === y) return "Yesterday";
+  return d.toLocaleDateString("en-GB",{weekday:"short", day:"2-digit", month:"short"});
+}
+const isOwner = () => role === "owner";
+/* The person, not the role. Both owners used to record as "Owner", so a void
+   never showed whether it was Zain or Arslan. */
+let userName = null;
+const currentUser = () => userName || (isOwner() ? "Owner" : "Staff");
+
+function toast(msg, bad){
+  if(bad) Sound.error();
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "show" + (bad ? " err" : "");
+  clearTimeout(t._t);
+  t._t = setTimeout(()=>{ t.className = ""; }, 2200);
+}
+const MAX_SALES = 3000;         // local cache ceiling; history is fetched on demand
+let storageOK = true;
+
+let cartTimer = null;
+/* The basket changes on every tap; the catalogue and history do not.
+   Write just the basket, and coalesce rapid taps. */
+function saveCartSoon(){
+  clearTimeout(cartTimer);
+  cartTimer = setTimeout(()=>{
+    try{ localStorage.setItem(LS.cart, JSON.stringify(cart)); }catch(e){ save(); }
+  }, 250);
+}
+function save(){
+  try{
+    localStorage.setItem(LS.items, JSON.stringify(items));
+    localStorage.setItem(LS.sales, JSON.stringify(sales.slice(0, MAX_SALES)));
+    localStorage.setItem(LS.cart,  JSON.stringify(cart));
+    if(!storageOK){ storageOK = true; setNet(online, online?"Synced":"Saved on device"); }
+    return true;
+  }catch(e){
+    storageOK = false;
+    console.error("SAVE FAILED", e);
+    // Never fail silently — the shop must know its data is not being kept.
+    const full = e && (e.name === "QuotaExceededError" || e.code === 22);
+    toast(full ? "Storage full — sale NOT saved. Tell Zain."
+               : "Could not save — sale NOT stored. Tell Zain.", true);
+    const h2 = $("hSub"); if(h2) h2.textContent = "NOT SAVING — storage error";
+    const d = $("netDot"); if(d) d.className = "dot off";
+    return false;
+  }
+}
+
+function load(){
+  try{
+    var ri = localStorage.getItem(LS.items);
+    var rs = localStorage.getItem(LS.sales);
+    var rc = localStorage.getItem(LS.cart);
+    items = ri ? (JSON.parse(ri) || []) : [];
+    sales = rs ? (JSON.parse(rs) || []) : [];
+    cart  = rc ? (JSON.parse(rc) || {}) : {};
+  }catch(e){ items = []; sales = []; cart = {}; }
+  if(!Array.isArray(items)) items = [];
+  if(!Array.isArray(sales)) sales = [];
+  if(!cart || typeof cart !== "object") cart = {};
+
+  // Strip any image data that older versions wrote into sale lines.
+  let trimmed = false;
+  sales.forEach(s => (s.lines||[]).forEach(l => {
+    if(l.photo){ delete l.photo; trimmed = true; }
+    if(l.icon){ delete l.icon; trimmed = true; }
+    if(l.tint){ delete l.tint; trimmed = true; }
+  }));
+  if(sales.length > MAX_SALES){ sales = sales.slice(0, MAX_SALES); trimmed = true; }
+
+  // Seed the real stock ONLY on a device that has never saved anything.
+  if(ri === null && !items.length){
+    items = FIRST_RUN.map(r => ({id:uid(), name:r[0], photo:"./products/"+r[1]+".png",
+                                 cost:0, price:0, stock:r[4], active:true}));
+    save();
+  } else if(trimmed) save();
+}
+
+/* Confirm storage actually works on this device before anyone starts selling. */
+function checkStorage(){
+  try{
+    localStorage.setItem("g404_test","1");
+    localStorage.removeItem("g404_test");
+    return true;
+  }catch(e){ return false; }
+}
+function queueAdd(kind, payload){
+  if(!SYNC_ON()) return;                         // #1 never build a queue with nowhere to send it
+  try{
+    const q = queueGet();
+    q.push({kind, payload, at:Date.now()});
+    if(q.length > MAX_QUEUE) q.splice(0, q.length - MAX_QUEUE);
+    localStorage.setItem(LS.queue, JSON.stringify(q));
+  }catch(e){                                     // #17 do not fail silently
+    console.error("QUEUE WRITE FAILED", e);
+    toast("Storage full — this change will not reach the database", true);
+  }
+}
+function queueSet(q){
+  try{ localStorage.setItem(LS.queue, JSON.stringify(q)); }catch(e){ console.error(e); }
+}
+function queueGet(){
+  try{ return JSON.parse(localStorage.getItem(LS.queue) || "[]"); }catch(e){ return []; }
+}
+function queueClear(){ try{ localStorage.removeItem(LS.queue); }catch(e){} }
+
+
+/* ---------- 4. SUPABASE SYNC ---------- */
+const SYNC_ON = () => !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_KEY);
+const MAX_QUEUE = 500;
+let syncStarted = false, initRetried = false, channel = null;
+
+async function initSync(){
+  if(syncStarted) return;                       // #18 one channel per session, not per login
+  if(!SYNC_ON()){ setNet(false,"Local only"); return; }
+  syncStarted = true;
+  try{
+    console.log("[404] initSync: getting client");
+    await ensureClient();
+    const { data: sess } = await sb.auth.getSession();
+    console.log("[404] initSync: session present?", !!(sess && sess.session));
+    setNet(true,"Synced");
+    console.log("[404] initSync: flushing queue");
+    await flushQueue();                         // #3 send our work BEFORE taking theirs
+    console.log("[404] initSync: pulling");
+    await pull();
+    console.log("[404] initSync: pull done, subscribing");
+    subscribeRealtime();
+    loadSessions();
+  }catch(e){
+    console.error("[404] sync init failed:", e);
+    syncStarted = false;
+    setNet(false, "Offline (init: " + why(e) + ")");
+    if(!initRetried){ initRetried = true; setTimeout(()=>initSync(), 1500); }
+  }
+}
+function why(e){
+  if(!e) return "unknown";
+  const m = e.message || e.error_description || e.msg || String(e);
+  return m.length > 60 ? m.slice(0,60) + "…" : m;
+}
+/* Live updates are a bonus. If the channel cannot be set up the app still
+   works, so this must never be able to mark the whole app as offline.
+   A channel can only take handlers BEFORE it subscribes, so any previous
+   one (from an earlier sign-in) has to be removed first. */
+async function subscribeRealtime(){
+  if(!sb) return;
+  try{
+    if(channel){ try{ await sb.removeChannel(channel); }catch(e){} channel = null; }
+    channel = sb.channel("g404-" + Date.now())      // a fresh name every time
+      .on("postgres_changes",{event:"*",schema:"public",table:"items"},()=>pull(true))
+      .on("postgres_changes",{event:"*",schema:"public",table:"sales"},()=>pull(true))
+      // Live gaming sessions belong to the other app, but this one shows them.
+      .on("postgres_changes",{event:"*",schema:"public",table:"gz_sessions"},()=>loadSessions());
+    channel.subscribe(st => {
+      console.log("[404] realtime:", st);
+      if(st === "SUBSCRIBED"){ rtBackoff = 2000; if(!online) verifyConnection(); return; }
+      // A dropped socket used to be logged and forgotten: the dot stayed
+      // green while the till had stopped hearing about sessions ended on
+      // the other app. Now it says so, and comes back on its own.
+      if(st === "CHANNEL_ERROR" || st === "TIMED_OUT" || st === "CLOSED"){
+        setNet(false, "Reconnecting\u2026");
+        scheduleResubscribe();
+      }
+    });
+  }catch(e){
+    console.warn("[404] realtime unavailable (app still works):", e);
+    scheduleResubscribe();
+  }
+}
+let rtRetry = null, rtBackoff = 2000;
+function scheduleResubscribe(){
+  if(rtRetry) return;
+  rtRetry = setTimeout(()=>{ rtRetry = null; subscribeRealtime(); }, rtBackoff);
+  rtBackoff = Math.min(30000, rtBackoff * 2);
+}
+// Only a state KNOWN to be dead counts as dead; anything else is left alone,
+// or a rejoin loop can chase its own tail.
+const realtimeAlive = () => !!channel && !["closed","errored","leaving"].includes(channel.state);
+
+/* The countdown has to move, so redraw once a second while the page is open.
+   Only the Sessions view is redrawn, and only the numbers change. */
+setInterval(() => {
+  if(tab === "sessions" && gzSessions.length) render();
+}, 1000);
+/* And re-read who is playing every half minute, in case a realtime event was
+   missed while the phone was asleep. */
+setInterval(() => {
+  if(document.visibilityState !== "visible") return;
+  if(sb && user && !realtimeAlive() && !rtRetry) subscribeRealtime();
+  loadSessions();
+}, 30000);
+document.addEventListener("visibilitychange", () => {
+  if(document.visibilityState === "visible") loadSessions();
+});
+
+function setNet(ok, label){
+  online = ok;
+  const d = $("netDot"); if(d) d.className = "dot" + (ok ? "" : " off");
+  const h2 = $("hSub"); if(h2) h2.textContent = label;
+}
+
+async function pull(quiet){
+  if(!sb) return;
+  let ok = false;
+  if(queueGet().length){ await flushQueue(); }   // #3 never overwrite unsent work
+  try{
+    const [ri, rs] = await Promise.all([
+      sb.from("items").select("*").order("name"),
+      sb.from("sales").select("*").gte("created_at", periodStart("today").toISOString())
+        .order("created_at",{ascending:false}).limit(500)
+    ]);
+    if(ri.error) throw ri.error;
+    if(rs.error) throw rs.error;
+    // #2 an empty or missing table must never wipe a working till
+    if(Array.isArray(ri.data) && ri.data.length) items = ri.data;
+    else if(Array.isArray(ri.data) && !ri.data.length && items.length){
+      // Empty database: an owner uploads the catalogue once. Staff never can.
+      if(isOwner()){
+        const r = await sb.from("items").upsert(items.map(i => stripItem(i, true)), {onConflict:"id"});
+        if(r.error) console.warn("initial upload failed", r.error);
+        else toast(items.length + " products uploaded to the database");
+      } else {
+        console.warn("server items table empty — keeping local catalogue");
+      }
+    }
+    // 500 rows back means the answer may be clipped, so it cannot be treated
+    // as the full truth for the window.
+    if(Array.isArray(rs.data))
+      mergeSales(rs.data, rs.data.length >= 500 ? null : periodStart("today").toISOString());
+    save();
+    ok = true;
+  }catch(e){
+    console.error("[404] pull failed:", e);
+    setNet(false, "Offline (pull: " + why(e) + ")");
+  }
+  // Outside the try: a rendering error is not a network error and must not
+  // make the header claim we are offline.
+  if(ok){ setNet(true,"Synced"); }
+  render();
+}
+
+/* Sales still sitting in the offline queue. These have not reached the
+   database yet, so the database's silence about them means nothing. */
+function pendingSaleIds(){
+  const s = new Set();
+  try{ queueGet().forEach(j => {
+    if(!j.payload) return;
+    if(j.kind === "sale" && j.payload.id) s.add(j.payload.id);
+    // A snack put on a session tab is queued as "tabAdd", which carries a
+    // session id and no row id — so it used to protect nothing. The local row
+    // it created ("tab_<session>") then looked unknown to mergeSales and was
+    // deleted off the phone, staff re-added the items, and when the queue
+    // finally drained the customer was charged twice.
+    if(j.kind === "tabAdd" && j.payload.session) s.add("tab_" + j.payload.session);
+  }); }
+  catch(e){}
+  return s;
+}
+
+/* The database is the record; this device only mirrors it.
+   Inside the window we just downloaded, the server's answer is the whole
+   truth — a sale it did not return no longer exists and is dropped here too.
+   Outside that window we were told nothing, so we keep what we hold.
+   Sales still queued for upload are never dropped: they are ours, not the
+   server's, until they land. Pass fromISO = null to only add and never
+   remove (used when a fetch came back truncated and so is not the truth). */
+function mergeSales(rows, fromISO){
+  const byId   = new Map();
+  const pending = pendingSaleIds();
+  const from   = fromISO ? new Date(fromISO).getTime() : null;
+
+  sales.forEach(s => {
+    const t = new Date(s.created_at).getTime();
+    const authoritativeHere = from !== null && t >= from;
+    if(!authoritativeHere || pending.has(s.id)) byId.set(s.id, s);
+  });
+  rows.forEach(r => byId.set(r.id, r));          // server wins on conflict
+  sales = [...byId.values()]
+    .sort((a,b)=> new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, MAX_SALES);
+}
+
+/* History is only downloaded when a report period asks for it. */
+const FETCH_CAP = 5000;
+let fetched = {};        // period -> time it was last loaded
+let loadingPeriod = false;
+let periodTruncated = false;
+
+async function fetchPeriod(p, force){
+  if(!sb || !online) return;
+  if(p === "today") return;                       // the routine sync already has it
+  if(loadingPeriod) return;                       // one at a time
+  const last = fetched[p] || 0;
+  if(!force && Date.now() - last < 60000) return; // do not refetch on every tap
+  // Claim it BEFORE rendering. render() calls back into this function, so
+  // without this the two would call each other forever.
+  fetched[p] = Date.now();
+  loadingPeriod = true; render();
+  try{
+    let q = sb.from("sales").select("*").order("created_at",{ascending:false}).limit(FETCH_CAP);
+    if(p !== "all") q = q.gte("created_at", periodStart(p).toISOString());
+    const { data, error } = await q;
+    if(error) throw error;
+    periodTruncated = Array.isArray(data) && data.length >= FETCH_CAP;
+    if(Array.isArray(data)){
+      const from = periodTruncated ? null
+                 : (p === "all" ? new Date(0).toISOString() : periodStart(p).toISOString());
+      mergeSales(data, from);
+    }
+  }catch(e){
+    console.warn("period fetch failed", e);
+    toast("Could not load older sales — showing what is on this device", true);
+  }finally{
+    loadingPeriod = false; render();
+  }
+}
+
+/* Stock moves as a DELTA so two phones selling at once cannot overwrite
+   each other. Applied server-side by the adjust_stock function. */
+async function pushStock(id, delta){
+  if(!delta) return;
+  return push("stock", {id, delta});
+}
+
+async function push(kind, payload){
+  if(!SYNC_ON()) return true;                    // #1 nothing to queue when sync is off
+  if(!sb){ queueAdd(kind, payload); return false; }
+  // Do not refuse to try just because the flag says offline — the flag can be wrong.
+  try{
+    if(kind === "sale"){
+      let r = await sb.from("sales").upsert(payload, {onConflict:"id"});  // #19 idempotent
+      // If the app reaches the shop before the late-entry migration has been
+      // run, the database has no backdated/entered_at columns. Selling must
+      // not stop for that. Drop the two new fields and send the sale anyway —
+      // the money is what matters; the label can wait for the migration.
+      // Same for the split-payment columns. A sale must never fail to save
+      // because a migration has not been run — the money is what matters, and
+      // pay_method still carries the whole-bill cases on its own.
+      if(r.error && /backdated|entered_at|cash_amount|online_amount|does not exist|schema cache/i.test(r.error.message || "")){
+        const {backdated, entered_at, ...older} = payload;
+        console.warn("optional columns missing — sending the sale without them");
+        r = await sb.from("sales").upsert(older, {onConflict:"id"});
+        if(r.error && /cash_amount|online_amount|does not exist|schema cache/i.test(r.error.message || "")){
+          const {cash_amount, online_amount, ...oldest} = older;
+          r = await sb.from("sales").upsert(oldest, {onConflict:"id"});
+        }
+      }
+      if(r.error) throw r.error;
+    }
+    if(kind === "tabAdd"){
+      // Merged server-side, so two phones adding to the same tab at once
+      // cannot overwrite each other's items.
+      const r = await sb.rpc("gz_add_to_tab", {
+        p_session_id: payload.session, p_lines: payload.lines, p_staff: payload.staff });
+      if(r.error) throw r.error;
+    }
+    if(kind === "void"){
+      const r = await sb.from("sales").update({voided:true, void_reason:payload.reason,
+        voided_by:payload.by, voided_at:payload.at}).eq("id",payload.id);
+      if(r.error) throw r.error;
+    }
+    if(kind === "stock"){
+      const r = await sb.rpc("adjust_stock", {p_id:payload.id, p_delta:payload.delta});
+      if(r.error) throw r.error;
+    }
+    if(kind === "itemUpsert"){
+      const r = await sb.from("items").upsert(payload, {onConflict:"id"});
+      if(r.error) throw r.error;
+    }
+    if(kind === "itemDelete"){
+      const r = await sb.from("items").delete().eq("id",payload.id);
+      if(r.error) throw r.error;
+    }
+    if(!online) setNet(true,"Synced");   // proof we are connected
+    return true;
+  }catch(e){
+    console.error("[404] push failed:", kind, e);
+    queueAdd(kind, payload);
+    setNet(false, "Offline (push " + kind + ": " + why(e) + ")");
+    return false;
+  }
+}
+
+/* #4 drain one at a time and only drop what actually landed. */
+let flushing = false;
+async function flushQueue(){
+  if(!sb) return;
+  // A single sale on another phone fires several realtime events, and each one
+  // calls pull() -> flushQueue(). Without this guard two flushes read the same
+  // job and both send it. "sale" is an upsert so a repeat is harmless, but
+  // "tabAdd" and "stock" are server-side ADDITIONS — sending either twice
+  // double-charges a customer's tab and takes the stock off twice.
+  if(flushing) return;
+  flushing = true;
+  try{
+    let sent = 0;
+    while(true){
+      // Re-read every time. Holding one captured array and writing it back
+      // after each job overwrote anything queued during the await — a sale
+      // rung up mid-flush was dropped from the queue and, having never
+      // reached the server, was then deleted from the local list too.
+      const q = queueGet();
+      if(!q.length) break;
+      const job = q[0];
+    let ok = false;
+    try{
+      if(job.kind === "sale"){ const r = await sb.from("sales").upsert(job.payload,{onConflict:"id"}); ok = !r.error; }
+      else if(job.kind === "tabAdd"){ const r = await sb.rpc("gz_add_to_tab",{p_session_id:job.payload.session, p_lines:job.payload.lines, p_staff:job.payload.staff}); ok = !r.error; }
+      else if(job.kind === "void"){ const r = await sb.from("sales").update({voided:true, void_reason:job.payload.reason, voided_by:job.payload.by, voided_at:job.payload.at}).eq("id",job.payload.id); ok = !r.error; }
+      else if(job.kind === "stock"){ const r = await sb.rpc("adjust_stock",{p_id:job.payload.id, p_delta:job.payload.delta}); ok = !r.error; }
+      else if(job.kind === "itemUpsert"){ const r = await sb.from("items").upsert(job.payload,{onConflict:"id"}); ok = !r.error; }
+      else if(job.kind === "itemDelete"){ const r = await sb.from("items").delete().eq("id",job.payload.id); ok = !r.error; }
+      else ok = true;                            // unknown kind: drop it rather than wedge the queue
+    }catch(e){ ok = false; }
+      if(!ok){ setNet(false, "Offline (queue: " + job.kind + " rejected)"); break; }
+      // Re-read again before removing, so anything queued during the await
+      // above survives. Only this one job is dropped, by identity.
+      const fresh = queueGet();
+      const at = fresh.findIndex(j => j === job || (j.kind === job.kind && JSON.stringify(j) === JSON.stringify(job)));
+      if(at >= 0) fresh.splice(at, 1); else fresh.shift();
+      queueSet(fresh); sent++;                   // persist progress after every single write
+    }
+    if(sent) toast(sent + " offline change" + (sent>1?"s":"") + " synced");
+  } finally {
+    flushing = false;
+  }
+}
+
+/* ---------- 5. LOGIN ----------
+   With Supabase configured, identity and permissions come from real accounts and
+   the database enforces them. Without it, the PIN pad is used for local testing. */
+let pin = "";
+const AUTH_ON = () => !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_KEY);
+
+function buildKeys(){
+  const k = $("keys"); if(!k) return; k.innerHTML = "";
+  ["1","2","3","4","5","6","7","8","9","⌫","0","OK"].forEach(v=>{
+    const b = document.createElement("button");
+    b.textContent = v;
+    if(v === "OK") b.className = "wide";
+    b.onclick = ()=>{
+      Sound.unlock(); Sound.tap();
+      if(v === "⌫") pin = pin.slice(0,-1);
+      else if(v === "OK") return tryLogin();
+      else if(pin.length < 6) pin += v;
+      $("pinBox").textContent = "•".repeat(pin.length);
+      $("loginMsg").textContent = "";
+    };
+    k.appendChild(b);
+  });
+}
+
+/* Local-only mode: PIN pad. */
+function tryLogin(){
+  const hit = CONFIG.USERS.find(u => u.pin === pin);
+  if(hit){ startApp(hit.role, hit); return; }
+  $("loginMsg").textContent = "Wrong PIN"; pin = ""; $("pinBox").textContent = "";
+}
+
+/* Real mode: Supabase email + password. */
+async function signIn(){
+  const email = ($("authEmail").value||"").trim();
+  const pass  = $("authPass").value||"";
+  if(!email || !pass){ $("loginMsg").textContent = "Enter your email and password"; return; }
+  const btn = $("authGo"); btn.disabled = true; btn.textContent = "Signing in…";
+  $("loginMsg").textContent = "";
+  try{
+    await ensureClient();
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if(error) throw error;
+    const who = await loadProfile(data.user);
+    if(!who){ $("loginMsg").textContent = "No profile set up for this account. Ask Zain."; return; }
+    $("authPass").value = "";
+    syncStarted = false; initRetried = false;   // new session, so let sync start fresh
+    startApp(who.role, who);
+  }catch(e){
+    console.warn("sign in failed", e);
+    $("loginMsg").textContent = (e && e.message) ? e.message : "Could not sign in";
+  }finally{
+    btn.disabled = false; btn.textContent = "Sign in";
+  }
+}
+
+/* Role comes from the profiles table, never from the client. */
+async function loadProfile(authUser){
+  if(!authUser) return null;
+  try{
+    const { data, error } = await sb.from("profiles").select("name,role").eq("id", authUser.id).single();
+    if(error) throw error;
+    const who = { id:authUser.id, name:data.name, role:data.role, email:authUser.email };
+    try{ localStorage.setItem(LS.profile, JSON.stringify(who)); }catch(e){}
+    return who;
+  }catch(e){
+    // Offline: fall back to the profile cached at last successful sign-in.
+    try{
+      const c = JSON.parse(localStorage.getItem(LS.profile) || "null");
+      if(c && c.id === authUser.id) return c;
+    }catch(e2){}
+    return null;
+  }
+}
+
+let clientPromise = null;
+/* Sign-in and session-restore can both ask for the client at the same moment.
+   Without sharing one promise they each build their own, and only one of them
+   ends up holding the session — which then looks like being offline. */
+function ensureClient(){
+  if(sb) return Promise.resolve(sb);
+  if(clientPromise) return clientPromise;
+  clientPromise = (async ()=>{
+    if(!window.supabase){
+      await new Promise((res, rej)=>{
+        const existing = document.getElementById("sbLib");
+        if(existing){ existing.addEventListener("load", res); existing.addEventListener("error", rej); return; }
+        const s = document.createElement("script");
+        s.id = "sbLib";
+        s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+    sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY, {
+      auth:{ persistSession:true, autoRefreshToken:true }
+    });
+    return sb;
+  })();
+  clientPromise.catch(()=>{ clientPromise = null; });   // allow a retry
+  return clientPromise;
+}
+
+/* Already signed in on this device? Go straight in — including offline. */
+async function restoreSession(){
+  if(!AUTH_ON()) return false;
+  try{
+    await ensureClient();
+    const { data } = await sb.auth.getSession();
+    if(data && data.session && data.session.user){
+      const who = await loadProfile(data.session.user);
+      if(who){ startApp(who.role, who); return true; }
+    }
+  }catch(e){ console.warn("session restore failed", e); }
+  return false;
+}
+
+function showLogin(){
+  const emailMode = AUTH_ON();
+  $("pinWrap").classList.toggle("hidden", emailMode);
+  $("emailForm").classList.toggle("hidden", !emailMode);
+  $("authNote").classList.toggle("hidden", !emailMode);
+}
+
+function startApp(r, who){
+  Sound.unlock(); Sound.welcome();
+  role = r; user = who || null; pin = "";
+  userName = (who && who.name || "").trim() || null;   // "Zain", "Arslan", "Staff"
+  const pb = $("pinBox"); if(pb) pb.textContent = "";
+  $("login").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  $("roleBadge").textContent = isOwner() ? "OWNER" : "STAFF";
+  $("roleBadge").className = "badge " + (isOwner() ? "owner" : "staff");
+  tab = "sell";
+  buildNav(); render(); initSync();
+}
+
+async function logout(){
+  save();            // never leave a basket behind for the next person
+  if(AUTH_ON() && sb){
+    try{ await sb.auth.signOut(); }catch(e){}
+    try{ localStorage.removeItem(LS.profile); }catch(e){}
+  }
+  if(channel && sb){ try{ await sb.removeChannel(channel); }catch(e){} channel = null; }
+  role = null; user = null; cart = {};
+  syncStarted = false; initRetried = false;
+  $("app").classList.add("hidden");
+  $("login").classList.remove("hidden");
+  showLogin();
+}
+
+/* Which gaming session a past snack sale belonged to, so the report can say
+   who bought it. Live sessions and finished ones both count. */
+let sessionInfo = {};      // session id -> { platform, names }
+
+async function loadSessionInfo(ids){
+  if(!sb || !online || !ids.length) return;
+  const missing = ids.filter(id => id && !sessionInfo[id]);
+  if(!missing.length) return;
+  try{
+    const [{data:live}, {data:done}] = await Promise.all([
+      sb.from("gz_sessions").select("id,platform,players").in("id", missing),
+      sb.from("gz_history").select("id,platform,player_names").in("id", missing)
+    ]);
+    (live || []).forEach(x => {
+      sessionInfo[x.id] = {
+        platform: (x.platform || "").toUpperCase(),
+        names: (x.players || []).map(p => p && p.name).filter(Boolean).join(", ")
+      };
+    });
+    (done || []).forEach(x => {
+      sessionInfo[x.id] = {
+        platform: (x.platform || "").toUpperCase(),
+        names: (x.player_names || []).filter(Boolean).join(", ")
+      };
+    });
+    render();
+  }catch(e){ console.warn("[404] session names unavailable:", e); }
+}
+
+/* ---------- LIVE GAMING SESSIONS ----------
+   Read straight from the gaming zone's own table. Attaching a snack to the
+   session the customer is sitting at removes the "who bought what" guesswork
+   that was causing missed entries. */
+async function loadSessions(){
+  if(!sb || !online) return;
+  try{
+    const [{data:ses, error:e1}, {data:tabs, error:e2}] = await Promise.all([
+      sb.from("gz_sessions").select("*").order("start_time"),
+      sb.rpc("gz_session_tabs")
+    ]);
+    if(e1) throw e1;
+    if(e2) throw e2;
+    gzSessions = ses || [];
+    gzTabs = {};
+    (tabs || []).forEach(t => { gzTabs[t.session_id] = { items: Number(t.items)||0, amount: Number(t.amount)||0 }; });
+    if(tab === "sessions") render();
+  }catch(e){ console.warn("[404] could not read sessions:", e); }
+}
+
+function sessionLabel(x){
+  const names = (x.players || []).map(p => p && p.name).filter(Boolean);
+  return names.join(", ") || "\u2014";
+}
+function remainingText(x){
+  const ms = Number(x.end_time) - Date.now();
+  if(ms <= 0) return "time up";
+  const m = Math.floor(ms/60000), sec = Math.floor((ms%60000)/1000);
+  return pad2(m) + ":" + pad2(sec) + " left";
+}
+
+function viewSessions(){
+  if(!gzSessions.length){
+    return `<div class="empty"><span class="e">\u{1F3AE}</span>No one is playing right now.<br>
+      <span style="font-size:12px">Start a session on the gaming zone page and it will appear here.</span></div>`;
+  }
+  return `<div class="sesswrap">` + gzSessions.map(x => {
+    const t = gzTabs[x.id] || { items:0, amount:0 };
+    const over = Number(x.end_time) - Date.now() <= 0;
+    return `<button class="sesscard ${over?"over":""}" data-sess="${esc(x.id)}">
+      <div class="sctop">
+        <span class="plat ${esc(x.platform||"ps5")}">${esc((x.platform||"ps5").toUpperCase())}</span>
+        <span class="sctime ${over?"up":""}">${remainingText(x)}</span>
+      </div>
+      <div class="scname">${esc(sessionLabel(x))}</div>
+      <div class="scfoot">
+        ${t.items
+          ? `<span class="sctab">${t.items} snack${t.items>1?"s":""} \u00b7 ${money(t.amount)}</span>`
+          : `<span class="sctab none">no snacks yet</span>`}
+        <span class="scadd">${t.items ? "View" : "Add"} \u203A</span>
+      </div>
+    </button>`;
+  }).join("") + `</div>
+  <div class="hintbar">Snacks added here are put on the session's tab and paid for when the session ends on the gaming page.</div>`;
+}
+
+/* Tapping a session opens its tab: what they have had, adjustable there and
+   then, with a way through to add more. Correcting a mistake at the counter
+   takes seconds; leaving it for the owner to unpick later does not. */
+function openSessionSheet(sessionId){
+  const x = gzSessions.find(g => g.id === sessionId);
+  if(!x) return;
+  const who = sessionLabel(x);
+  const plat = (x.platform || "ps5").toUpperCase();
+  const row = sales.find(r => r.id === "tab_" + sessionId && !r.voided && !r.settled_at);
+  let draft = ((row && row.lines) || []).map(l => ({...l}));
+  const original = JSON.stringify(draft);
+
+  const goSell = () => {
+    tabFor = { id:sessionId, label:who, platform:plat };
+    cart = {}; save();
+    closeSheet(); Sound.nav(); tab = "sell"; buildNav(); render();
+  };
+
+  const body = () => {
+    const total = draft.reduce((n,l)=>n + rupees(l.price)*l.qty, 0);
+    const dirty = JSON.stringify(draft) !== original;
+    return `<h2 style="margin-bottom:2px">${esc(who)}</h2>
+      <p style="color:var(--dim);font-size:12px;margin:0 0 12px">${esc(plat)} \u00b7 ${esc(remainingText(x))}</p>
+
+      ${draft.length ? `<div id="tlines">${draft.map((l,i)=>`
+        <div class="tline">
+          <div class="tl-name">${esc(l.name)}<i>${money(l.price)} each</i></div>
+          <button class="tl-btn" data-tdec="${i}">\u2212</button>
+          <span class="tl-q">${l.qty}</span>
+          <button class="tl-btn" data-tinc="${i}">+</button>
+          <span class="tl-amt">${money(rupees(l.price)*l.qty)}</span>
+        </div>`).join("")}</div>
+        <div class="tl-total"><span>Tab total</span><b>${money(total)}</b></div>`
+      : `<div class="tl-none">Nothing on this tab yet.</div>`}
+
+      ${(!draft.length && row) ? `<p style="color:var(--warn);font-size:12.5px;margin-top:8px">Saving with nothing left will void this tab.</p>` : ""}
+
+      <div class="mrow" style="margin-top:14px">
+        <button class="btn gh" data-x>Close</button>
+        ${dirty ? `<button class="btn rd" id="tok">Save changes</button>` : ""}
+        <button class="btn pri" id="tadd">Add Snacks \u203A</button>
+      </div>`;
+  };
+
+  const saveDraft = async () => {
+    if(!sb || !online){ toast("Correcting a tab needs a connection", true); return false; }
+    const { data, error } = await sb.rpc("gz_set_tab_lines", {
+      p_session_id: sessionId, p_lines: draft, p_by: currentUser() });
+    if(error){ toast("Could not save: " + (error.message || "error"), true); return false; }
+    if(data && data.emptied){
+      if(row){ row.voided = true; row.void_reason = "All items removed"; row.voided_by = currentUser(); }
+    }else if(row){
+      row.lines = draft;
+      row.total = draft.reduce((n,l)=>n + rupees(l.price)*l.qty, 0);
+      row.cost_total = draft.reduce((n,l)=>n + rupees(l.cost)*l.qty, 0);
+      row.profit = row.total - row.cost_total;
+    }
+    save(); loadSessions();
+    return true;
+  };
+
+  const wire = () => {
+    document.querySelectorAll("[data-tinc]").forEach(b => b.onclick = ()=>{
+      draft[+b.dataset.tinc].qty += 1; redraw();
+    });
+    document.querySelectorAll("[data-tdec]").forEach(b => b.onclick = ()=>{
+      const i = +b.dataset.tdec;
+      draft[i].qty -= 1;
+      if(draft[i].qty <= 0) draft.splice(i,1);
+      redraw();
+    });
+    const ok = $("tok");
+    if(ok) ok.onclick = async ()=>{
+      ok.disabled = true; ok.textContent = "Saving\u2026";
+      if(await saveDraft()){ closeSheet(); render(); toast("Tab updated \u00b7 stock adjusted"); }
+      else { ok.disabled = false; ok.textContent = "Save changes"; }
+    };
+    const add = $("tadd");
+    if(add) add.onclick = async ()=>{
+      // Unsaved corrections are kept, not quietly dropped, before moving on.
+      if(JSON.stringify(draft) !== original){
+        add.disabled = true; add.textContent = "Saving\u2026";
+        if(!(await saveDraft())){ add.disabled = false; add.textContent = "Add Snacks \u203A"; return; }
+      }
+      goSell();
+    };
+  };
+  const redraw = ()=>{
+    const sh = document.querySelector("#sheet .sheet");
+    if(!sh) return;
+    sh.innerHTML = body();
+    sh.querySelectorAll("[data-x]").forEach(b => b.onclick = closeSheet);
+    wire();
+  };
+
+  openSheet(body(), wire);
+}
+
+/* ---------- 6. NAV ---------- */
+function buildNav(){
+  const tabs = isOwner()
+    ? [["sessions","🎮","Sessions"],["sell","🛒","Sell"],["stock","📦","Stock"],["history","🕘","History"],["items","⚙️","Items"],["report","📊","Reports"]]
+    : [["sessions","🎮","Sessions"],["sell","🛒","Sell"],["stock","📦","Stock"],["today","🧾","Today"]];
+  $("nav").innerHTML = tabs.map(([k,i,l])=>
+    `<button data-tab="${k}" class="${tab===k?"on":""}"><span class="ic">${i}</span>${l}</button>`
+  ).join("");
+  $("nav").querySelectorAll("button").forEach(b=>{
+    b.onclick = ()=>{
+      Sound.nav();
+      if(b.dataset.tab !== "sell"){
+        // Only let go of the session while the basket is empty. Dropping
+        // tabFor with items still in the basket turned the customer's tab
+        // into a counter sale the moment staff glanced at Stock and came
+        // back: the banner was gone, checkout asked for cash, and the snacks
+        // never reached the tab that gets settled at the end of the session.
+        if(!Object.keys(cart).length) tabFor = null;
+        saleMode = "now";                           // and never come back to a page still armed for backdating
+        lateDate = ""; lateTime = "";
+      }
+      tab = b.dataset.tab; buildNav(); render();
+      if(tab === "sessions") loadSessions();
+      // Deliveries and counts are owner-only and only needed on this page, so
+      // a counter phone never downloads them.
+      // Deliveries are owner-only and only needed on these two pages, so a
+      // counter phone never downloads them.
+      if((tab === "stock" || tab === "report" || tab === "history") && isOwner()){
+        // History needs the WHOLE log: "stock on a date" walks back through
+        // every movement since that date, and the earliest date offered is
+        // the first movement ever recorded.
+        ensureStockLog(tab === "history" ? "all" : tab === "report" ? period : "month").then(did => { if(did) render(); });
+      }
+    };
+  });
+}
+
+/* ---------- 7. RENDER ---------- */
+function render(){
+  const m = $("main");
+  $("cartBar").classList.toggle("hidden", tab !== "sell");
+  if(tab === "sessions") m.innerHTML = viewSessions();
+  if(tab === "sell")   m.innerHTML = viewSell();
+  if(tab === "stock")  m.innerHTML = viewStock();
+  if(tab === "items")  m.innerHTML = viewItems();
+  if(tab === "history"){ m.innerHTML = viewHistory(); if(histView === "onDate") fetchPeriod("all"); }
+  if(tab === "report"){ m.innerHTML = viewReport(); fetchPeriod(period); }
+  if(tab === "today")  m.innerHTML = viewToday();
+  wire();
+  updateCartBar();
+}
+
+/* ----- SELL ----- */
+/* "now" is an ordinary sale. "late" records one that was served but never
+   rung up \u2014 the date and time are chosen, the stock still moves today. */
+let saleMode = "now";
+let lateDate = "";          // yyyy-mm-dd
+let lateTime = "";          // HH:MM
+
+/* The chosen moment, or null if it is not filled in yet. */
+function lateStamp(){
+  if(!lateDate || !lateTime) return null;
+  const [y,m,d]  = lateDate.split("-").map(Number);
+  const [hh,mm]  = lateTime.split(":").map(Number);
+  if(!y || !m || !d || isNaN(hh) || isNaN(mm)) return null;
+  const t = new Date(y, m-1, d, hh, mm, 0, 0);
+  return isNaN(t.getTime()) ? null : t;
+}
+
+/* Why a late entry can or cannot be saved. Returns "" when it is fine.
+   Staff may only reach back into tonight; owners may pick any past date. */
+function lateProblem(){
+  const t = lateStamp();
+  if(!t) return "Pick the date and time the customer was served.";
+  if(t.getTime() > Date.now() + 60000) return "That is in the future. Pick a time that has already happened.";
+  if(!isOwner() && dayOf(t.toISOString()) !== todayKey())
+    return "You can only add a sale missed during tonight's shift. Ask an owner for an earlier date.";
+  if(t.getTime() < Date.now() - 7*86400000) return "That is more than a week ago.";
+  return "";
+}
+
+function viewSell(){
+  const live = items.filter(i => i.active !== false);
+  const banner = tabFor ? `<div class="tabbar">
+      <button class="tabback" id="tabBack">\u2039</button>
+      <div class="tabwho">
+        <b>${esc(tabFor.label)}</b>
+        <i>${esc(tabFor.platform)} \u00b7 goes on their tab, paid when the session ends</i>
+      </div>
+    </div>` : "";
+
+  // A session tab is by definition happening now, so backdating has no
+  // meaning there and the strip is hidden while one is open.
+  const modes = tabFor ? "" : `<div class="modeseg" id="modeSeg">
+      <button data-mode="now"  class="${saleMode==="now" ?"on":""}">\u{1F6D2} Sell Now</button>
+      <button data-mode="late" class="${saleMode==="late"?"on":""}">\u{1F4DD} Late Entry</button>
+    </div>`;
+
+  let panel = "";
+  if(!tabFor && saleMode === "late"){
+    panel = `<div class="latebox">
+      <div class="lrow">
+        <div class="lf"><label>Date served</label>
+          <input type="date" id="lateDate" value="${esc(lateDate)}" max="${esc(ymdLocal(new Date()))}"></div>
+        <div class="lf"><label>Time served</label>
+          <input type="time" id="lateTime" value="${esc(lateTime)}"></div>
+      </div>
+      <div class="latehint" id="lateHint"></div>
+      <div class="latehint">Stock comes off now, because that is when the shelf is actually short.${isOwner()?"":" Staff can reach back to the start of tonight only."}</div>
+    </div>`;
+  }
+  const head = banner + modes + panel;
+
+  if(!live.length) return head + `<div class="empty"><span class="e">\u{1F4E6}</span>No items yet.${isOwner()?" Add some in the Items tab.":" Ask the owner to add items."}</div>`;
+  return head + `<div class="grid">` + live.map(i=>{
+    const q = cart[i.id] || 0;
+    const noPrice = !(i.price > 0);
+    const out = noPrice || i.stock <= 0;
+    const low = !noPrice && i.stock > 0 && i.stock <= CONFIG.LOW_STOCK;
+    return `<div class="item ${out?"dis":""} ${q?"inCart":""}" data-card="${esc(i.id)}">
+      ${q?`<span class="qbadge">${q}</span>`:""}
+      ${itemVisual(i,"ico")}
+      <div class="nm">${esc(i.name)}</div>
+      <div class="pr">${noPrice?"—":money(i.price)}</div>
+      <div class="st ${out?"out":low?"low":""}">${noPrice?"Set price":i.stock<=0?"Out of stock":i.stock+" left"}</div>
+      <div class="qrow">
+        <button class="qb minus" data-dec="${i.id}" ${q?"":"disabled"} aria-label="Remove one">\u2212</button>
+        <span class="qn">${q}</span>
+        <button class="qb plus" data-inc="${i.id}" ${(out||q>=i.stock)?"disabled":""} aria-label="Add one">+</button>
+      </div>
+    </div>`;
+  }).join("") + `</div>`;
+}
+
+/* ----- STOCK ----- */
+function viewStock(){
+  if(!items.length) return `<div class="empty"><span class="e">📦</span>No items yet.${isOwner()?"<br>Go to the Items tab and add your first product.":"<br>Ask the owner to add items."}</div>`;
+  const sorted = [...items].sort((a,b)=>a.stock-b.stock);
+  const lows = sorted.filter(i=>i.stock <= CONFIG.LOW_STOCK);
+  const lowBanner = lows.length
+    ? `<div class="banner"><b>⚠️ ${lows.length} item${lows.length>1?"s":""} running low</b><br>${lows.map(i=>esc(i.name)+" ("+i.stock+")").join(", ")}</div>` : "";
+
+  // Staff see exactly what they always saw: the count, and nothing about money.
+  if(!isOwner()){
+    return lowBanner + `<div class="card"><h3>Current Stock</h3>` + sorted.map(i=>`
+      <div class="line">
+        ${itemVisual(i,"ico")}
+        <div class="mid"><div class="t1">${esc(i.name)}</div>
+        <div class="t2">Sells at ${money(i.price)}</div></div>
+        <div class="amt" style="color:${i.stock<=0?"var(--bad)":i.stock<=CONFIG.LOW_STOCK?"var(--warn)":"var(--okl)"}">${i.stock}</div>
+      </div>`).join("") + `</div>`;
+  }
+
+  const monthFrom = periodStart("month").getTime();
+  const spent = spentIn(monthFrom);
+  const dels  = deliveries();
+
+  const head = `<div class="card"><h3>Money in stock</h3>
+    <div class="stat"><span class="k">On the shelves, at cost</span><span class="v">${money(shelfValue())}</span></div>
+    <div class="stat"><span class="k">Spent on stock this month</span><span class="v">${money(spent)}</span></div>
+    <div class="stat"><span class="k">Deliveries this month</span><span class="v">${dels.filter(r=>new Date(r.at).getTime()>=monthFrom).length}</span></div>
+  </div>`;
+
+  const list = `<div class="card"><h3>Current Stock</h3>` + sorted.map(i=>{
+    const last = lastDelivery(i.id);
+    return `<div class="line" data-stockitem="${esc(i.id)}" style="cursor:pointer">
+      ${itemVisual(i,"ico")}
+      <div class="mid">
+        <div class="t1">${esc(i.name)}</div>
+        <div class="t2">Worth ${money(Math.max(0,whole(i.stock))*rupees(i.cost))} at cost${
+          last ? " · last in " + new Date(last.at).toLocaleDateString("en-GB",{day:"2-digit",month:"short"}) : " · no delivery recorded"}</div>
+      </div>
+      <div class="amt" style="color:${i.stock<=0?"var(--bad)":i.stock<=CONFIG.LOW_STOCK?"var(--warn)":"var(--okl)"}">${i.stock}</div>
+      <button class="iconbtn" data-restock="${esc(i.id)}" title="Stock arrived">+</button>
+    </div>`;
+  }).join("") + `</div>`;
+
+  const recent = dels.slice(0, 30);
+  const stockIn = `<div class="card"><h3>Stock In</h3>` + (recent.length
+    ? recent.map(r=>{
+        const it = items.find(x=>x.id===r.item_id);
+        const priced = r.unit_cost != null;
+        return `<div class="dsale" data-stockitem="${esc(r.item_id)}" style="cursor:pointer">
+          <span class="dsw-time">${new Date(r.at).toLocaleDateString("en-GB",{day:"2-digit",month:"short"})}</span>
+          <span class="dsw-what">${esc(it ? it.name : r.item_id)} · ${whole(r.delta)} × ${
+            priced ? money(r.unit_cost) : "price not recorded"}</span>
+          <span class="dsw-amt">${priced ? money(whole(r.delta)*rupees(r.unit_cost)) : "\u2014"}</span>
+        </div>`;
+      }).join("")
+    : `<div class="empty" style="padding:18px 0"><span class="e">🧾</span>No deliveries recorded yet.<br>Tap <b>+</b> on an item when stock arrives.</div>`)
+    + `</div>`;
+
+  return lowBanner + head + list + stockIn;
+}
+
+/* Everything known about one item: what is there, what it is worth, when it
+   last came in, and what has been made on it since that delivery. */
+async function stockItemSheet(id){
+  const it = items.find(x=>x.id===id); if(!it) return;
+  const lots = deliveries().filter(r=>r.item_id===id);   // newest first
+
+  openSheet(`<h2>${esc(it.name)}</h2>
+    <div id="siBody" style="font-size:13.5px;color:var(--dim)">Working it out…</div>
+    <div class="mrow" style="margin-top:12px">
+      <button class="btn gh" data-x>Close</button>
+      <button class="btn gh" id="siCount">Count shelf</button>
+      <button class="btn pri" id="siAdd">Stock arrived</button>
+    </div>`,
+  async ()=>{
+    $("siAdd").onclick   = ()=>{ closeSheet(); restockModal(id); };
+    $("siCount").onclick = ()=>{ closeSheet(); countModal(id); };
+
+    /* Every delivery of this item, and what was earned while it was on the
+       shelf. A lot's window runs from the day it arrived until the next
+       delivery replaced it — so "profit on that stock" means the profit taken
+       between the two, which is the only reading the till can actually
+       support: individual cans are not tracked, only quantities.
+
+       Sales are asked for straight from the database. The report period may
+       not reach back far enough, and a delivery three months ago has to be
+       answerable today. */
+    let byLot = null;
+    try{
+      if(sb && online && lots.length){
+        const from = new Date(lots[lots.length-1].at).getTime();
+        const r = await sb.from("sales").select("lines,voided,created_at")
+          .gte("created_at", new Date(from).toISOString()).limit(5000);
+        if(r.error) throw r.error;
+        byLot = lots.map(()=>({sold:0, took:0, made:0}));
+        (r.data||[]).filter(x=>!x.voided).forEach(x=>{
+          const t = new Date(x.created_at).getTime();
+          // lots are newest first, so the first one at or before this sale
+          // is the delivery the customer was buying out of.
+          const k = lots.findIndex(L => new Date(L.at).getTime() <= t);
+          if(k < 0) return;
+          (x.lines||[]).forEach(l=>{
+            if(l.id !== id) return;
+            const q = whole(l.qty);
+            byLot[k].sold += q;
+            byLot[k].took += q*rupees(l.price);
+            byLot[k].made += q*(rupees(l.price)-rupees(l.cost));
+          });
+        });
+      }
+    }catch(e){ byLot = null; }
+
+    const body = $("siBody"); if(!body) return;
+
+    const head = [
+      ["On the shelf now", it.stock + " · " + money(Math.max(0,whole(it.stock))*rupees(it.cost)) + " at cost"],
+      ["Sells at", money(it.price) + " · margin " + money(rupees(it.price)-rupees(it.cost))]
+    ].map(([k,v])=>`<div class="stat"><span class="k">${k}</span><span class="v" style="font-size:13px">${v}</span></div>`).join("");
+
+    let hist;
+    if(!lots.length){
+      hist = `<div class="lothint">No deliveries recorded for this item yet.<br>
+              Tap <b>Stock arrived</b> when the next lot comes in — from then on
+              every delivery is dated and priced, and the profit made against it
+              is worked out for you.</div>`;
+    } else if(!byLot){
+      hist = `<div class="lothint">The delivery history needs a connection to work out. Try again when you are back online.</div>`;
+    } else {
+      hist = lots.map((L,k)=>{
+        const qty   = whole(L.delta);
+        const paid  = L.unit_cost == null ? null : rupees(L.unit_cost);
+        const spend = paid == null ? null : qty*paid;
+        const b     = byLot[k];
+        const until = k === 0 ? "still selling" :
+          "until " + new Date(lots[k-1].at).toLocaleDateString("en-GB",{day:"2-digit",month:"short"});
+        const left  = qty - b.sold;
+        return `<div class="lot">
+          <div class="lot-h">
+            <span class="lot-d">${new Date(L.at).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})}</span>
+            <span class="lot-q">${qty} × ${paid == null ? "price not recorded" : money(paid)}</span>
+            <span class="lot-c">${spend == null ? "—" : money(spend)}</span>
+          </div>
+          <div class="lot-b">
+            <div><span class="lk">Sold</span><span class="lv">${b.sold}${left > 0 && k === 0 ? " · " + left + " left" : ""}</span></div>
+            <div><span class="lk">Took</span><span class="lv">${money(b.took)}</span></div>
+            <div><span class="lk">Profit</span><span class="lv ${b.made>0?"good":""}">${money(b.made)}</span></div>
+          </div>
+          <div class="lot-f">${until}${left < 0 ? " · sold more than this lot, earlier stock included" : ""}</div>
+        </div>`;
+      }).join("");
+
+      const totSpend = lots.reduce((a,L)=> a + (L.unit_cost==null ? 0 : whole(L.delta)*rupees(L.unit_cost)), 0);
+      const totMade  = byLot.reduce((a,b)=>a+b.made, 0);
+      hist += `<div class="stat" style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
+        <span class="k">All ${lots.length} deliver${lots.length===1?"y":"ies"}</span>
+        <span class="v" style="font-size:13px">spent ${money(totSpend)} · made ${money(totMade)}</span></div>`;
+    }
+
+    body.innerHTML = head
+      + `<div class="lot-title">Deliveries, and what each one earned</div>` + hist;
+  });
+}
+
+/* ----- TODAY (staff) ----- */
+function viewToday(){
+  const t = sales.filter(s => dayOf(s.created_at) === todayKey());
+  const good = t.filter(s => !s.voided);
+  const rev = good.reduce((a,s)=>a+s.total,0);
+  return `<div class="card"><h3>Today</h3>
+      <div style="text-align:center;padding:8px 0"><div class="big">${money(rev)}</div>
+      <div style="color:var(--dim);font-size:12px;margin-top:4px">${good.length} sale${good.length!==1?"s":""}</div></div></div>`
+    + salesList(t, true);
+}
+
+/* ----- HISTORY (owner) -----
+   Two questions about the shelves that the live figure cannot answer:
+     - what came in, when, and what it cost        (Stock Added)
+     - what was on the shelves on a given day       (Stock on a date)
+   Nothing here is stored. Both are worked out from the movement log every
+   time, so a correction anywhere is reflected here at once. */
+let histView = "added";                    // "added" | "onDate"
+let histDate = "";                         // YYYY-MM-DD, a business day
+
+function viewHistory(){
+  if(!isOwner()) return `<div class="empty"><span class="e">\u{1F512}</span>Owners only.</div>`;
+  const seg = `<div class="seg" id="histSeg">
+      <button data-hv="added"  class="${histView==="added" ?"on":""}">Stock Added</button>
+      <button data-hv="onDate" class="${histView==="onDate"?"on":""}">Stock on a date</button>
+    </div>`;
+  return seg + (histView === "onDate" ? stockOnDateHTML() : stockInHTML());
+}
+
+/* When the movement log began. Before this instant, movements were not
+   written down — but the SALES were, and a sale is a movement. So for the
+   days before the log, the sales table stands in for it. */
+function logStartMs(){
+  // Deliveries recorded after the fact are dated before the log began, on
+  // purpose. They are not where the log started.
+  const real = stockLog.filter(r => (r.note || "") !== "recorded after the fact");
+  if(!real.length) return null;
+  return Math.min(...real.map(r => new Date(r.at).getTime()));
+}
+/* The first business day that can be looked back to: the first sale ever
+   recorded, or the first logged movement, whichever is earlier. */
+function firstLoggedDay(){
+  const ts = [];
+  const l = logStartMs(); if(l !== null) ts.push(l);
+  sales.forEach(x => { if(x.created_at) ts.push(new Date(x.created_at).getTime()); });
+  if(!ts.length) return null;
+  return dayOf(new Date(Math.min(...ts)).toISOString());
+}
+/* A delivery made before the log began has no quantity anywhere. Days before
+   it are off by exactly that amount, so they are shown but flagged. An owner
+   can enter it after the fact from the delivery form — dated, log-only — and
+   the flag goes away. */
+function unloggedDeliveriesBefore(dayKey){
+  const l = logStartMs(); if(l === null) return false;
+  const [y,m,d] = dayKey.split("-").map(Number);
+  const close = new Date(y, m-1, d, CONFIG.DAY_START_HOUR); close.setDate(close.getDate()+1);
+  return close.getTime() < l;
+}
+
+/* The shelf at the END of a business day, item by item.
+
+   Today's figure is known. Every movement since that day's close is in the
+   log with its sign. So the shelf then = the shelf now, minus everything
+   that happened after. This is exact for as long as every movement has
+   been logged — which is why the item form and delivery reversals were
+   made to go through the log too.
+
+   The value uses the price paid for the most recent delivery on or before
+   that day, which is the cost that was in force then. An item with no
+   priced delivery by that day falls back to its current cost, and says so. */
+function stockOnDay(dayKey){
+  // the close of that business day = the start of the next
+  const [y,m,d] = dayKey.split("-").map(Number);
+  const closeAt = new Date(y, m-1, d, CONFIG.DAY_START_HOUR, 0, 0, 0);
+  closeAt.setDate(closeAt.getDate() + 1);
+  const close = closeAt.getTime();
+
+  return items.map(it => {
+    let qty = whole(it.stock);
+    let costThen = null;
+    // whole() is for quantities and clamps below zero. A movement's delta is
+    // SIGNED — a sale is negative — so it needs its own reader, or every
+    // sale in the log is silently read as nothing and the shelf on any past
+    // day comes out as today's figure minus the deliveries alone.
+    const signed = v => { const n = Math.round(Number(v)); return Number.isFinite(n) ? n : 0; };
+    const logFrom = logStartMs();
+    stockLog.forEach(r => {
+      if(r.item_id !== it.id) return;
+      const t = new Date(r.at).getTime();
+      if(t >= close) qty -= signed(r.delta);         // undo everything after that day
+      else if(r.kind === "purchase" && r.unit_cost != null && costThen === null) costThen = rupees(r.unit_cost);
+    });
+    // Before the log began, every sale still has to come back onto the
+    // shelf. Those sales are in the sales table and nowhere else. From the
+    // moment the log began it records every sale itself, so the sales table
+    // is only consulted for the gap — never for both, or a sale would be put
+    // back twice. A voided sale returned its stock at the time, so it nets
+    // to nothing and is skipped.
+    if(logFrom !== null){
+      sales.forEach(x => {
+        if(x.voided || !x.created_at) return;
+        const t = new Date(x.created_at).getTime();
+        if(t < logFrom && t >= close){
+          (x.lines || []).forEach(l => { if(l.id === it.id) qty += whole(l.qty); });
+        }
+      });
+    }
+    // stockLog is newest-first, so the first priced purchase seen before
+    // `close` is the most recent one — the cost in force that day.
+    const cost = costThen != null ? costThen : rupees(it.cost);
+    return { id: it.id, name: it.name, qty: Math.max(0, qty), cost, costKnown: costThen != null,
+             value: Math.max(0, qty) * cost, photo: it.photo };
+  });
+}
+
+function stockOnDateHTML(){
+  const first = firstLoggedDay();
+  const today = todayKey();
+  if(!stockLog.length && stockLogFrom === null){
+    return `<div class="card"><h3>Stock on a date</h3>
+      <div class="empty" style="padding:18px 0"><span class="e">\u{1F4E6}</span>Loading the movement log…</div></div>`;
+  }
+  if(!first){
+    return `<div class="card"><h3>Stock on a date</h3>
+      <div class="empty" style="padding:18px 0"><span class="e">\u{1F4C5}</span>No movements recorded yet, so there is no day to look back to.</div></div>`;
+  }
+  if(!histDate || histDate < first || histDate > today) histDate = today;
+
+  const rows = stockOnDay(histDate).sort((a,b) => b.value - a.value || a.name.localeCompare(b.name));
+  const total = rows.reduce((a,r) => a + r.value, 0);
+  const units = rows.reduce((a,r) => a + r.qty, 0);
+  const guessed = rows.filter(r => !r.costKnown && r.qty > 0).length;
+  const isToday = histDate === today;
+  const beforeLog = unloggedDeliveriesBefore(histDate);
+  const logDay = logStartMs() !== null ? niceDay(dayOf(new Date(logStartMs()).toISOString())) : null;
+
+  const nice = niceDay(histDate);
+  return `<div class="card"><h3>Stock on a date</h3>
+    <div class="hd-pick">
+      <label for="histDate">Show the shelves at the end of</label>
+      <input type="date" id="histDate" value="${esc(histDate)}" min="${esc(first)}" max="${esc(today)}">
+    </div>
+    <div class="hd-hint">Records begin ${niceDay(first)}.${logDay ? ` Every movement has been logged since ${esc(logDay)}; before that, sales are known but deliveries were not written down.` : ""}</div>
+    ${beforeLog ? `<div class="hd-hint" style="color:var(--warn)">⚠ This day is before deliveries were being recorded. Every sale since is accounted for, but a delivery that arrived between this day and ${esc(logDay)} was never written down — its units are still counted here as if they had already arrived. So these figures are <b>at most</b> what was on the shelf. Record those deliveries from the Stock tab, with their real date, and this becomes exact.</div>` : ""}
+
+    <div class="stin-head" style="margin-top:12px">
+      <div><span class="stin-hk">${isToday ? "Right now" : esc(nice)}</span><span class="stin-hv">${units} units</span></div>
+      <div><span class="stin-hk">Items in stock</span><span class="stin-hv">${rows.filter(r=>r.qty>0).length}</span></div>
+      <div><span class="stin-hk">Worth, at cost</span><span class="stin-hv money">${money(total)}</span></div>
+    </div>
+    ${guessed ? `<div class="hd-hint">⚠ ${guessed} item${guessed===1?"":"s"} had no priced delivery by then, so today’s cost is used for ${guessed===1?"it":"them"}.</div>` : ""}
+
+    ${rows.map(r => `<div class="line hd-row">
+        ${itemVisual({photo:r.photo, name:r.name}, "ico")}
+        <div class="mid">
+          <div class="t1">${esc(r.name)}</div>
+          <div class="t2">${r.qty} × ${money(r.cost)}${r.costKnown ? "" : ' <span class="stin-warn" title="No priced delivery by this date; today’s cost used">≈</span>'}</div>
+        </div>
+        <div class="amt" style="color:${r.qty<=0?"var(--bad)":r.qty<=CONFIG.LOW_STOCK?"var(--warn)":"var(--okl)"}">${r.qty}</div>
+        <div class="hd-val">${money(r.value)}</div>
+      </div>`).join("")}
+    <div class="stin-foot">Worked out from today’s shelf and every movement recorded since that day: sales, deliveries and counts. If a movement was never recorded, that day will be off by exactly that much.</div>
+  </div>`;
+}
+
+/* ----- STOCK ADDED (owner, on the Reports page) -----
+   Every delivery, grouped by the day it arrived: what came in, how many, what
+   was paid for each, and what the day cost in total. This is the record
+   Arslan asked for — "what was added, when, and what it cost" — in one place
+   he can scroll, rather than something he has to know to tap on. */
+function stockInHTML(){
+  if(!isOwner()) return "";
+
+  const seg = `<div class="seg sub" id="stockSeg">${
+    ["today","week","month","all"].map(x =>
+      `<button data-stockper="${x}" class="${stockPeriod===x?"on":""}">${
+        x==="today"?"Today":x==="week"?"Week":x==="month"?"Month":"All"}</button>`).join("")}</div>`;
+
+  if(!stockLog.length && stockLogFrom === null){
+    return `<div class="card"><h3>Stock Added</h3>${seg}
+      <div class="empty" style="padding:18px 0"><span class="e">\u{1F4E6}</span>Loading deliveries…</div></div>`;
+  }
+
+  const dels = deliveriesIn(stockPeriod);
+  const label = PERIOD_LABEL[stockPeriod];
+
+  if(!dels.length){
+    return `<div class="card"><h3>Stock Added</h3>${seg}
+      <div class="empty" style="padding:18px 0"><span class="e">\u{1F9FE}</span>
+        No stock was added ${esc(label.toLowerCase())}.<br>
+        <span style="font-size:12px">Every delivery is recorded from the <b>Stock</b> tab —
+        tap <b>+</b> on an item when a lot comes in, and it appears here with its date and price.</span>
+      </div></div>`;
+  }
+
+  // Grouped by the day it arrived, newest day first.
+  const byDay = {};
+  dels.forEach(r=>{
+    const k = dayOf(r.at) || String(r.at).slice(0,10);
+    (byDay[k] = byDay[k] || []).push(r);
+  });
+  const days = Object.entries(byDay).sort((a,b)=> b[0].localeCompare(a[0]));
+  const total = dels.reduce((a,r)=> a + whole(r.delta)*rupees(r.unit_cost), 0);
+  const units = dels.reduce((a,r)=> a + whole(r.delta), 0);
+
+  const body = days.map(([k, rows])=>{
+    const dayTotal = rows.reduce((a,r)=> a + whole(r.delta)*rupees(r.unit_cost), 0);
+    const lines = rows.map(r=>{
+      const it = items.find(x=>x.id===r.item_id);
+      const qty = whole(r.delta);
+      const priced = r.unit_cost != null;
+      const each = priced ? rupees(r.unit_cost) : null;
+      // An item deleted from the catalogue leaves its deliveries behind. The
+      // raw database id told nobody anything; say plainly what it is, and
+      // let it be cleared away.
+      const gone = !it;
+      return `<div class="stin${gone?" gone":""}">
+        ${gone ? '<span class="ico ghost">❓</span>' : itemVisual(it, "ico")}
+        <div class="stin-mid" ${gone?"":`data-stockitem="${esc(r.item_id)}"`}>
+          <div class="stin-name">${gone ? "Deleted item" : esc(it.name)}</div>
+          <div class="stin-sub">${qty} × ${priced ? money(each) : "price not recorded"}${
+            priced ? "" : ' <span class="stin-warn">⚠</span>'}</div>
+        </div>
+        <div class="stin-amt">${priced ? money(qty*each) : "—"}</div>
+        <button class="stin-x" data-deldel="${esc(String(r.id))}" title="Remove this delivery">✕</button>
+      </div>`;
+    }).join("");
+    return `<div class="stin-day">
+        <span class="stin-date">${niceDay(k)}</span>
+        <span class="stin-daytot">${money(dayTotal)}</span>
+      </div>${lines}`;
+  }).join("");
+
+  return `<div class="card"><h3>Stock Added — ${esc(label)}</h3>${seg}
+    <div class="stin-head">
+      <div><span class="stin-hk">Deliveries</span><span class="stin-hv">${dels.length}</span></div>
+      <div><span class="stin-hk">Units in</span><span class="stin-hv">${units}</span></div>
+      <div><span class="stin-hk">Spent</span><span class="stin-hv money">${money(total)}</span></div>
+    </div>
+    ${body}
+    <div class="stin-foot">Tap an item to see its full delivery history and the profit made on each lot.
+      Use ✕ to remove a delivery entered by mistake.</div>
+  </div>`;
+}
+
+/* Removing a delivery that should not be there. The stock it brought in can
+   go back with it, because a delivery that never happened never put those
+   units on the shelf either — but that is asked, not assumed, since a
+   delivery can also be deleted long after the units have been sold. */
+function deleteDelivery(logId){
+  if(!isOwner()){ toast("Only an owner can remove a delivery", true); return; }
+  const r = stockLog.find(x => String(x.id) === String(logId));
+  if(!r){ toast("That entry is no longer here", true); return; }
+  const it = items.find(x => x.id === r.item_id);
+  const qty = whole(r.delta);
+  const cost = r.unit_cost == null ? null : qty*rupees(r.unit_cost);
+
+  openSheet(`<h2>Remove this delivery?</h2>
+    <p style="color:var(--dim);font-size:13px;margin:0 0 12px;line-height:1.5">
+      <b>${it ? esc(it.name) : "Deleted item"}</b> · ${qty} × ${
+        r.unit_cost == null ? "price not recorded" : money(r.unit_cost)}${
+        cost == null ? "" : " = " + money(cost)}<br>
+      ${new Date(r.at).toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}
+    </p>
+    ${it ? `<label style="display:flex;align-items:center;gap:9px;font-size:13px;
+        padding:11px;border-radius:11px;background:var(--card2);margin-bottom:12px;cursor:pointer">
+      <input type="checkbox" id="ddRev" checked style="width:18px;height:18px">
+      <span>Also take the ${qty} back off the shelf<br>
+        <span style="color:var(--dim);font-size:11.5px">${esc(it.name)} would go from ${it.stock} to ${Math.max(0, it.stock - qty)}.
+        Leave this unticked if the stock really did arrive and you are only fixing the price.</span></span>
+    </label>` : `<p style="color:var(--dim);font-size:12px;margin:0 0 12px">
+      This item has been deleted, so there is no shelf figure to correct.</p>`}
+    <div class="mrow"><button class="btn gh" data-x>Cancel</button>
+      <button class="btn rd" id="ddok">Remove</button></div>`,
+  ()=>{
+    $("ddok").onclick = async ()=>{
+      if(!sb || !online){ toast("You need a connection to do this", true); return; }
+      const rev = !!($("ddRev") && $("ddRev").checked);
+      const btn = $("ddok"); btn.disabled = true; btn.textContent = "Removing…";
+      try{
+        const res = await sb.rpc("delete_delivery", {p_log_id: Number(logId), p_reverse: rev});
+        if(res.error) throw res.error;
+        stockLog = stockLog.filter(x => String(x.id) !== String(logId));
+        if(rev && it && res.data != null){ it.stock = Number(res.data); save(); }
+        closeSheet(); render();
+        toast("Delivery removed" + (rev ? " · stock corrected" : ""));
+      }catch(e){
+        toast("Not removed: " + (e && e.message ? e.message : "failed"), true);
+        btn.disabled = false; btn.textContent = "Remove";
+      }
+    };
+  });
+}
+
+/* ----- REPORTS (owner) ----- */
+function viewReport(){
+  const list = salesIn(period);
+  const rev  = list.reduce((a,s)=>a+s.total,0);
+  const prof = list.reduce((a,s)=>a+(s.profit||0),0);
+  const units= list.reduce((a,s)=>a+(s.lines||[]).reduce((b,l)=>b+l.qty,0),0);
+  const voids = sales.filter(s=>s.voided && new Date(s.created_at).getTime() >= periodStart(period).getTime());
+
+  // ---- day by day ----
+  const byDay = {};
+  list.forEach(s=>{
+    const k = dayOf(s.created_at);
+    if(!k) return;
+    byDay[k] = byDay[k] || {rs:0, profit:0, n:0, units:0};
+    byDay[k].rs += s.total; byDay[k].profit += (s.profit||0); byDay[k].n++;
+    byDay[k].units += (s.lines||[]).reduce((b,l)=>b+l.qty,0);
+  });
+  const days = Object.entries(byDay).sort((a,b)=> b[0].localeCompare(a[0]));
+  const peak = days.reduce((m,[,d])=>Math.max(m,d.rs), 0) || 1;
+  const todayKeyStr = todayKey();
+
+  // ---- best sellers ----
+  const tally = {};                               // #24 key on id so renames do not split history
+  list.forEach(s=>(s.lines||[]).forEach(l=>{
+    const k = l.id || l.name;
+    tally[k] = tally[k] || {q:0, rs:0, id:l.id, name:l.name};
+    tally[k].q += l.qty; tally[k].rs += l.qty*l.price; tally[k].name = l.name;
+  }));
+  const top = Object.values(tally).sort((a,b)=>b.q-a.q).slice(0,10);
+  const stockValue = items.reduce((a,i)=>a+(i.cost||0)*(i.stock||0),0);
+  // Every delivery in the period being looked at, newest first.
+  // The Stock card follows the delivery filter, not the sales one, so the
+  // figure here and the list below can never disagree.
+  const dels = deliveriesIn(period);
+  const spentThis = dels.reduce((a,r)=> a + whole(r.delta)*rupees(r.unit_cost), 0);
+
+  return `
+  ${loadingPeriod ? `<div class="banner">Loading ${PERIOD_LABEL[period].toLowerCase()}…</div>` : ""}
+  ${periodTruncated && period === "all" ? `<div class="banner"><b>Very large history</b><br>Showing the most recent ${FETCH_CAP.toLocaleString()} sales. Use the CSV export for the complete record.</div>` : ""}
+  ${!online && period !== "today" ? `<div class="banner">Offline — showing only what is stored on this device.</div>` : ""}
+  <div class="seg" id="pseg">
+    ${["today","week","month","all"].map(p=>
+      `<button data-per="${p}" class="${period===p?"on":""}">${p==="today"?"Today":p==="week"?"Week":p==="month"?"Month":"All"}</button>`
+    ).join("")}
+  </div>
+
+  <div class="card">
+    <h3>${PERIOD_LABEL[period]}</h3>
+    <div style="text-align:center;padding:6px 0 10px"><div class="big">${money(rev)}</div></div>
+    <div class="stat"><span class="k">Profit</span><span class="v" style="color:var(--okl)">${money(prof)}</span></div>
+    <div class="stat"><span class="k">Sales</span><span class="v">${list.length}</span></div>
+    <div class="stat"><span class="k">Items sold</span><span class="v">${units}</span></div>
+    <div class="stat"><span class="k">Average sale</span><span class="v">${list.length?money(rev/list.length):money(0)}</span></div>
+    ${period!=="today"?`<div class="stat"><span class="k">Average per trading day</span><span class="v">${days.length?money(rev/days.length):money(0)}</span></div>`:""}
+    <div class="stat"><span class="k">Voided</span><span class="v" style="color:${voids.length?"var(--bad)":"inherit"}">${voids.length}</span></div>
+  </div>
+
+  ${/* The cash/online breakdown lives on the Admin page now, where the gaming
+       and snack money can be seen together. This stays a till. The payment is
+       still recorded at checkout — only the report moved. */ ""}
+
+  ${days.length?`<div class="card"><h3>Day by day</h3>${days.map(([k,d])=>{
+    // Voided sales appear here too, struck through. The day's TOTAL still
+    // excludes them — but when you are checking a day, a void is exactly the
+    // thing you want to see rather than have hidden.
+    const daySales = sales.filter(x => dayOf(x.created_at) === k)
+                          .sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    return `
+    <div class="dayrow ${openDays.has(k)?"open":""}" data-day="${k}">
+      <div class="dd">
+        <div class="dt ${k===todayKeyStr?"today-hi":""}">${niceDay(k)}</div>
+        <div class="ds">${d.n} sale${d.n>1?"s":""} · ${d.units} item${d.units>1?"s":""}</div>
+        <div class="daybar" style="width:${Math.max(8, Math.round(d.rs/peak*100))}%"></div>
+      </div>
+      <div>
+        <div class="dv">${money(d.rs)}</div>
+        <div class="dp">+${money(d.profit)}</div>
+      </div>
+      <div class="dchev">\u25be</div>
+    </div>
+    <div class="daydetail ${openDays.has(k)?"open":""}">${daySales.map(x=>{
+      const si = x.gz_session_id ? sessionInfo[x.gz_session_id] : null;
+      const t = new Date(x.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+      const what = (x.lines||[]).map(l=>`${l.qty}\u00d7 ${esc(l.name)}`).join(", ") || "\u2014";
+      return `<div class="dsale ${x.voided?"void":""}">
+        <span class="dsw-time">${t}</span>
+        <span class="dsw-who">${si ? esc((si.platform||"") + " " + (si.names||"")) : "Counter"}</span>
+        <span class="dsw-what">${what}${x.backdated?'<span class="latetag" title="Entered after the fact">LATE</span>':""}</span>
+        <span class="dsw-amt">${money(x.total)}</span>
+      </div>`;
+    }).join("")}</div>`;
+  }).join("")}</div>`:`<div class="empty"><span class="e">📊</span>No sales in this period</div>`}
+
+  ${top.length?`<div class="card"><h3>Best sellers</h3>${top.map(d=>`
+    <div class="line">${itemVisual(items.find(x=>x.id===d.id)||{},"ico")}
+      <div class="mid"><div class="t1">${esc(d.name)}</div><div class="t2">${d.q} sold</div></div>
+      <div class="amt">${money(d.rs)}</div></div>`).join("")}</div>`:""}
+
+  <div class="card"><h3>Stock</h3>
+    <div class="stat"><span class="k">On the shelves now, at cost</span><span class="v">${money(stockValue)}</span></div>
+    <div class="stat"><span class="k">Spent on stock ${PERIOD_LABEL[period].toLowerCase()}</span><span class="v">${money(spentThis)}</span></div>
+    <div class="stat"><span class="k">Deliveries ${PERIOD_LABEL[period].toLowerCase()}</span><span class="v">${dels.length} \u00b7 <span style="color:var(--dim);font-weight:600">see History</span></span></div>
+    <div class="stat"><span class="k">Items low or out</span><span class="v">${items.filter(i=>i.stock<=CONFIG.LOW_STOCK).length}</span></div>
+  </div>
+
+
+  <button class="btn gh" id="btnCsv" style="width:100%;margin-bottom:11px">Download ${PERIOD_LABEL[period]} as CSV</button>
+
+  ${(()=>{ const all = sales.filter(s=> s.created_at && new Date(s.created_at).getTime() >= periodStart(period).getTime());
+     const page = all.slice(0, shown);
+     return `<div class="card"><h3>Sales — ${PERIOD_LABEL[period]}</h3>${salesList(page, false, true)}
+       ${all.length > shown ? `<button class="btn gh" id="btnMore" style="width:100%;margin-top:11px">
+            Show more &nbsp;·&nbsp; ${page.length} of ${all.length}</button>` : ""}
+       ${all.length && all.length <= shown && all.length > 100
+            ? `<div style="text-align:center;color:var(--dim);font-size:11px;padding-top:9px">All ${all.length} shown</div>` : ""}
+     </div>`; })()}`;
+}
+
+/* Spreadsheet export so you can keep your own records. */
+function exportCsv(){
+  const rows = [["Date","Time","Staff","Items","Qty","Revenue (Rs)","Cost (Rs)","Profit (Rs)","Status","Void reason","Voided by"]];
+  sales.filter(s=> new Date(s.created_at).getTime() >= periodStart(period).getTime())
+       .slice().reverse()
+       .forEach(s=>{
+    const d = new Date(s.created_at);
+    rows.push([
+      d.toLocaleDateString("en-GB"), d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}),
+      s.staff||"", (s.lines||[]).map(l=>l.qty+"x "+l.name).join("; "),
+      (s.lines||[]).reduce((a,l)=>a+l.qty,0),
+      s.voided?0:s.total, s.voided?0:(s.cost_total||0), s.voided?0:(s.profit||0),
+      s.voided?"VOID":"Completed", s.void_reason||"", s.voided_by||""
+    ]);
+  });
+  const csv = rows.map(r=>r.map(c=>{
+    const v = String(c==null?"":c);
+    return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
+  }).join(",")).join("\n");
+  try{
+    const blob = new Blob(["\ufeff"+csv], {type:"text/csv;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "404-snacks-" + period + "-" + todayKey() + ".csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+    toast("CSV downloaded");
+  }catch(e){ toast("Could not create the file", true); }
+}
+
+/* How long after the sale it was actually typed in. A miss fixed twenty
+   minutes later and one fixed three days later are different things, and the
+   number is the only way to tell them apart afterwards. */
+function lateGap(s){
+  if(!s.backdated || !s.entered_at || !s.created_at) return "";
+  const ms = new Date(s.entered_at).getTime() - new Date(s.created_at).getTime();
+  if(!(ms > 0)) return "";
+  const mins = Math.round(ms/60000);
+  const when = mins < 60  ? mins + " min"
+             : mins < 1440 ? Math.round(mins/60) + " hr"
+             : Math.round(mins/1440) + " day" + (Math.round(mins/1440) > 1 ? "s" : "");
+  return " · " + when + " later";
+}
+
+function salesList(list, allowVoid, bare){
+  if(!list.length) return `<div class="empty"><span class="e">🧾</span>No sales yet</div>`;
+  // Ask for any session names we do not have yet.
+  loadSessionInfo([...new Set(list.map(x=>x.gz_session_id).filter(Boolean))]);
+
+  const body = list.map(s=>{
+    const names = (s.lines||[]).map(l=>`${l.qty}× ${esc(l.name)}`).join(", ");
+    const si = s.gz_session_id ? sessionInfo[s.gz_session_id] : null;
+    const who = si
+      ? `<span class="sesstag">${esc(si.platform || "GAME")}</span><span class="sessname">${esc(si.names || "session")}</span>`
+      : `<span class="sesstag counter">COUNTER</span>`;
+    const time = new Date(s.created_at).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+    const canVoid = !s.voided && (isOwner() || (allowVoid && dayOf(s.created_at)===todayKey()));
+    return `<div class="line ${s.voided?"void":""}">
+      <div class="mid">
+        <div class="t0">${who}</div>
+        <div class="t1">${names||"—"} ${s.voided?'<span class="tag">VOID</span>':""}${s.backdated?'<span class="latetag">LATE ENTRY</span>':""}</div>
+        <div class="t2">${time} · ${esc(s.staff||"")}${payTag(s)}</div>
+        ${s.backdated?`<div class="t3" style="color:#c4a6ff">Not rung up at the time · entered by ${esc(s.staff||"?")}${lateGap(s)}</div>`:""}
+        ${s.voided?`<div class="t3">Voided${s.voided_by?" by "+esc(s.voided_by):""}${s.void_reason?" \u00b7 "+esc(s.void_reason):""}</div>`:""}
+      </div>
+      <div class="amt">${money(s.total)}</div>
+      ${(!s.voided && isOwner())?`<button class="iconbtn" data-editpay="${esc(s.id)}" title="Change how this was paid">💳</button>`:""}
+      ${canVoid?`<button class="iconbtn" data-void="${esc(s.id)}">✕</button>`:""}
+    </div>`;
+  }).join("");
+  return bare ? body : `<div class="card"><h3>Sales</h3>${body}</div>`;
+}
+
+/* ----- ITEMS (owner) ----- */
+function viewItems(){
+  const noP = items.filter(i=>!(i.price>0));
+  return (noP.length?`<div class="banner"><b>${noP.length} item${noP.length>1?"s":""} still need a price</b><br>Tap each one below and set its cost and selling price. They cannot be sold until then.</div>`:"")
+  + `<button class="btn pri" id="btnNew" style="width:100%;margin-bottom:12px">+ Add New Item</button>`
+  + `<div class="card"><h3>All Items</h3>` + (items.length?items.map(i=>`
+    <div class="line">
+      ${itemVisual(i,"ico")}
+      <div class="mid">
+        <div class="t1">${esc(i.name)}${i.active===false?' <span class="tag" style="background:#555">HIDDEN</span>':""}</div>
+        <div class="t2">Cost ${money(i.cost)} → Sells ${money(i.price)} · margin ${money(i.price-i.cost)}</div>
+      </div>
+      <button class="iconbtn" data-edit="${i.id}">✎</button>
+    </div>`).join("") : `<div class="empty"><span class="e">📦</span>No items</div>`) + `</div>`;
+}
+
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+/* ---------- 8. WIRING ---------- */
+function wire(){
+  document.querySelectorAll("[data-sess]").forEach(b=> b.onclick = ()=>openSessionSheet(b.dataset.sess));
+  const back = $("tabBack");
+  if(back) back.onclick = ()=>{ tabFor = null; cart = {}; save(); tab = "sessions"; buildNav(); render(); loadSessions(); };
+  document.querySelectorAll("[data-inc]").forEach(b=> b.onclick = ()=>bumpCart(b.dataset.inc, +1));
+  document.querySelectorAll("[data-dec]").forEach(b=> b.onclick = ()=>bumpCart(b.dataset.dec, -1));
+  document.querySelectorAll("[data-void]").forEach(b=> b.onclick = ()=>voidSale(b.dataset.void));
+  document.querySelectorAll("[data-editpay]").forEach(b=> b.onclick = ()=>editPayment(b.dataset.editpay));
+  document.querySelectorAll("[data-edit]").forEach(b=> b.onclick = ()=>itemModal(b.dataset.edit));
+  document.querySelectorAll("[data-restock]").forEach(b=> b.onclick = e => {
+    e.stopPropagation();                       // the row behind opens the item card
+    restockModal(b.dataset.restock);
+  });
+  document.querySelectorAll("[data-stockitem]").forEach(r=> r.onclick = ()=>stockItemSheet(r.dataset.stockitem));
+  document.querySelectorAll("[data-deldel]").forEach(b=> b.onclick = e=>{
+    e.stopPropagation();
+    deleteDelivery(b.dataset.deldel);
+  });
+  const hseg = $("histSeg");
+  if(hseg) hseg.querySelectorAll("button").forEach(b=> b.onclick = ()=>{ histView = b.dataset.hv; render(); });
+  const hd = $("histDate");
+  if(hd) hd.onchange = ()=>{ histDate = hd.value; render(); };
+  const sseg = $("stockSeg");
+  if(sseg) sseg.querySelectorAll("button").forEach(b=> b.onclick = ()=>{
+    stockPeriod = b.dataset.stockper;
+    render();
+    // Reach further back if the new window needs it.
+    ensureStockLog(stockPeriod).then(did => { if(did) render(); });
+  });
+  const n = $("btnNew"); if(n) n.onclick = ()=>itemModal(null);
+  const seg = $("pseg");
+  if(seg) seg.querySelectorAll("button").forEach(b=> b.onclick = ()=>{
+    period = b.dataset.per; shown = 100; render(); fetchPeriod(period);
+    ensureStockLog(period).then(did => { if(did) render(); });
+  });
+  document.querySelectorAll(".dayrow[data-day]").forEach(r => r.onclick = ()=>{
+    const k = r.dataset.day;
+    openDays.has(k) ? openDays.delete(k) : openDays.add(k);
+    render();
+  });
+  const more = $("btnMore");
+  if(more) more.onclick = ()=>{ shown += 100; render(); };
+  const csv = $("btnCsv"); if(csv) csv.onclick = exportCsv;
+
+  const mseg = $("modeSeg");
+  if(mseg) mseg.querySelectorAll("button").forEach(b => b.onclick = ()=>{
+    saleMode = b.dataset.mode;
+    if(saleMode === "late" && !lateDate){          // sensible starting point
+      const n = new Date();
+      lateDate = ymdLocal(n);
+      lateTime = pad2(n.getHours()) + ":" + pad2(n.getMinutes());
+    }
+    render();
+  });
+  // Typed into, not re-rendered: rebuilding the page on every keystroke would
+  // take the focus out of the field mid-entry.
+  const ld = $("lateDate"), lt = $("lateTime");
+  if(ld) ld.oninput = ()=>{ lateDate = ld.value; refreshLate(); };
+  if(lt) lt.oninput = ()=>{ lateTime = lt.value; refreshLate(); };
+  refreshLate();
+}
+
+/* Keeps the hint line and the Checkout button honest as the fields change. */
+function refreshLate(){
+  const el = $("lateHint");
+  if(el){
+    const why = lateProblem(), t = lateStamp();
+    el.className = "latehint " + (why ? "bad" : "good");
+    el.innerHTML = why
+      ? esc(why)
+      : "Recording a sale from " + esc(t.toLocaleString("en-GB",{weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}))
+        + " — filed under that night and marked as a late entry.";
+  }
+  updateCartBar();
+}
+function bumpCart(id, delta){
+  const it = items.find(i=>i.id===id); if(!it) return;
+  const have = Math.round(Number(cart[id])) || 0;
+  let next = have + delta;
+  if(next < 0) next = 0;
+  if(delta > 0){
+    if(!(it.price > 0)){ toast("Set a price for " + it.name + " first", true); return; }
+    if(next > it.stock){ toast("Only " + it.stock + " in stock", true); return; }
+  }
+  if(next === 0) delete cart[id]; else cart[id] = next;
+  if(delta > 0) Sound.add(); else Sound.drop();
+  saveCartSoon();  // basket survives a refresh, without rewriting all sales each tap
+  refreshCard(id);
+  updateCartBar();
+}
+/* Update just this one card so the grid does not flicker or jump. */
+function refreshCard(id){
+  const el = document.querySelector('[data-card="' + id + '"]');
+  const it = items.find(i=>i.id===id);
+  if(!el || !it) return render();
+  const q = cart[id] || 0;
+  el.classList.toggle("inCart", q > 0);
+  const qn = el.querySelector(".qn"); if(qn) qn.textContent = q;
+  const minus = el.querySelector(".minus"); if(minus) minus.disabled = q <= 0;
+  const plus  = el.querySelector(".plus");
+  if(plus) plus.disabled = !(it.price > 0) || it.stock <= 0 || q >= it.stock;
+  let badge = el.querySelector(".qbadge");
+  if(q){
+    if(badge) badge.textContent = q;
+    else { badge = document.createElement("span"); badge.className = "qbadge"; badge.textContent = q; el.prepend(badge); }
+  } else if(badge) badge.remove();
+}
+function updateCartBar(){
+  const ids = Object.keys(cart);
+  const n = ids.reduce((a,k)=>a+cart[k],0);
+  const tot = ids.reduce((a,k)=>{
+    const it = items.find(i=>i.id===k); return a + (it ? it.price*cart[k] : 0);
+  },0);
+  $("cartTotal").innerHTML = money(tot) + `<small>${n?n+" item"+(n>1?"s":""):"empty"}</small>`;
+  const late = (saleMode === "late" && !tabFor);
+  // A late entry with a bad date must not be saveable, so the button says so
+  // rather than failing after the tap.
+  $("btnPay").textContent = late ? "Save Late Entry" : "Checkout";
+  $("btnPay").disabled = !n || (late && !!lateProblem());
+  $("btnClear").disabled = !n;
+}
+
+/* ---------- 9. CHECKOUT ---------- */
+let gzSessions = [];        // live gaming sessions, read from the gaming zone
+let gzTabs = {};            // session id -> { items, amount } still unpaid
+let tabFor = null;          // the session we are currently adding snacks to
+const openDays = new Set(); // which day rows are expanded in Reports
+let checkingOut = false;
+async function checkout(){
+  if(checkingOut) return;                       // belt and braces against a double tap
+  const ids = Object.keys(cart); if(!ids.length) return;
+
+  // A late entry is checked once more here, not just when the button was
+  // drawn: the clock moves, and "tonight" can stop being tonight at 4am
+  // while the basket sits on the counter.
+  const isLate = (saleMode === "late" && !tabFor);
+  if(isLate){
+    const why = lateProblem();
+    if(why){ toast(why, true); return; }
+  }
+
+  checkingOut = true;
+  try{
+    const lines = [];
+    const now = isLate ? lateStamp().toISOString() : new Date().toISOString();
+    let total = 0, cost = 0;
+    const dropped = [];
+
+    for(const id of ids){
+      const it = items.find(i=>i.id===id);
+      const q  = Math.round(Number(cart[id])) || 0;
+      if(!it){ dropped.push("a deleted item"); continue; }        // #10
+      if(q <= 0){ dropped.push(it.name); continue; }
+      if(!(it.price > 0)){                                        // #9 re-check at sale time
+        toast("\u201C" + it.name + "\u201D has no price. Remove it or set a price.", true);
+        return;
+      }
+      if(it.active === false){                                    // #23 hidden but still in basket
+        toast("\u201C" + it.name + "\u201D is hidden. Remove it from the basket.", true);
+        return;
+      }
+      if(q > it.stock){
+        toast("Only " + it.stock + " \u00D7 " + it.name + " in stock", true);
+        return;
+      }
+      lines.push({id:it.id, name:it.name, qty:q, price:rupees(it.price), cost:rupees(it.cost)});
+      total += rupees(it.price)*q; cost += rupees(it.cost)*q;
+    }
+
+    if(!lines.length){                                            // #10 never record an empty sale
+      cart = {}; save(); render();
+      toast("Nothing left to sell — those items were removed", true);
+      return;
+    }
+    if(dropped.length) toast("Skipped: " + dropped.join(", "), true);
+
+    // A session tab is not paid now: it is settled with the gaming bill when
+    // the session ends. A walk-in at the counter pays straight away.
+    let pay = null;
+    if(!tabFor){
+      pay = await askPayment(money(total), total);
+      if(!pay){ checkingOut = false; return; }
+    }
+
+    const sale = {
+      id: uid(), created_at: now, lines,
+      total: Math.round(total), cost_total: Math.round(cost), profit: Math.round(total-cost),
+      staff: currentUser(), user_id: (user && user.id) || null,
+      pay_method: pay ? pay.method : null,
+      // The amounts are the truth; pay_method is shorthand. A split bill is
+      // only countable if both halves are written down.
+      cash_amount:   pay ? Math.round(pay.cash   || 0) : null,
+      online_amount: pay ? Math.round(pay.online || 0) : null,
+      gz_session_id: tabFor ? tabFor.id : null,
+      settled_at: tabFor ? null : new Date().toISOString(),
+      // created_at is when the customer was served; entered_at is when it was
+      // typed in. For an ordinary sale they match. When they do not, the gap
+      // is exactly what the Reports badge is there to show.
+      backdated: isLate,
+      entered_at: new Date().toISOString(),
+      voided: false, void_reason: null
+    };
+    // A session gets ONE row that grows, not a new row per trip to the counter.
+    // The id is derived from the session so it is the same row every time.
+    if(tabFor) sale.id = "tab_" + tabFor.id;
+
+    // Mirror the server-side merge locally so the list looks the same at once.
+    if(tabFor){
+      const existing = sales.find(x => x.id === sale.id && !x.voided && !x.settled_at);
+      if(existing){
+        lines.forEach(l => {
+          const hit = (existing.lines || []).find(e => e.id === l.id);
+          if(hit) hit.qty += l.qty; else existing.lines.push({...l});
+        });
+        existing.total      = (existing.lines||[]).reduce((n,l)=>n + rupees(l.price)*l.qty, 0);
+        existing.cost_total = (existing.lines||[]).reduce((n,l)=>n + rupees(l.cost)*l.qty, 0);
+        existing.profit     = existing.total - existing.cost_total;
+        sale.__merged = true;
+      }
+    }
+
+    const before = items.map(i=>({id:i.id, stock:i.stock}));      // #5 exact rollback
+    lines.forEach(l=>{ const it = items.find(i=>i.id===l.id); if(it) it.stock -= l.qty; });
+    const keptCart = Object.assign({}, cart);
+    if(!sale.__merged) sales.unshift(sale);
+    cart = {};
+
+    if(!save()){                                                  // #5 #6 restore everything faithfully
+      if(!sale.__merged) sales.shift();
+      before.forEach(b=>{ const it = items.find(i=>i.id===b.id); if(it) it.stock = b.stock; });
+      cart = keptCart;
+      save();                                                     // persist the restored state too
+      render();
+      return;
+    }
+    // Back to normal selling straight away. Leaving the app in late mode is
+    // how the next customer's sale quietly gets the wrong date on it.
+    const lateWhen = isLate ? new Date(now) : null;
+    if(isLate){ saleMode = "now"; lateDate = ""; lateTime = ""; }
+
+    render();
+    Sound.sale();
+    toast(tabFor
+      ? "Added to " + tabFor.label + "\u2019s tab \u00B7 " + money(total)
+      : lateWhen
+        ? "Late entry saved \u00B7 " + money(total) + " \u00B7 filed under "
+          + lateWhen.toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})
+        : "Sale saved \u00B7 " + money(total) + " \u00B7 " + (pay === "cash" ? "Cash" : "Online"));
+    if(tabFor){
+      const t = gzTabs[tabFor.id] || { items:0, amount:0 };
+      gzTabs[tabFor.id] = { items: t.items + lines.length, amount: t.amount + Math.round(total) };
+    }
+
+    if(tabFor) await push("tabAdd", { session: tabFor.id, lines, staff: currentUser() });
+    else       await push("sale", sale);
+    for(const l of lines) await pushStock(l.id, -l.qty);          // #8 delta, not absolute
+  } finally {
+    checkingOut = false;
+  }
+}
+
+/* Asks how the money was taken. Resolves "cash" | "online" | null.
+   One extra tap per sale, and it is the only way to know what should be in
+   the drawer at the end of the night. Works offline like everything else. */
+/* How a counter sale was settled. Returns { method, cash, online } or null if
+   staff backed out. Never a bare label: a customer who hands over Rs. 600 and
+   transfers Rs. 400 cannot be described by one word, and pretending otherwise
+   is what leaves the drawer disagreeing with the report at closing. */
+function askPayment(amountText, total){
+  const due = Math.round(Number(total) || 0);
+  return new Promise(resolve => {
+    const wrap = document.createElement("div");
+    wrap.className = "paysheet-backdrop";
+    wrap.innerHTML =
+      '<div class="paysheet">' +
+        '<div class="paysheet-amount">' + amountText + '</div>' +
+        '<div class="paysheet-q">How was it paid?</div>' +
+        '<div class="paysheet-row">' +
+          '<button class="paysheet-btn cash" data-pay="cash"><span>\u{1F4B5}</span>Cash</button>' +
+          '<button class="paysheet-btn online" data-pay="online"><span>\u{1F4F1}</span>Online</button>' +
+        '</div>' +
+        (due > 0 ? '<button class="paysheet-btn split" data-pay="split"><span>⇆</span>Some cash, some online</button>' : '') +
+        '<div class="paysplit-box" id="psBox" hidden>' +
+          '<div class="paysplit-row"><label>Cash</label><input type="number" id="psCash" inputmode="numeric" min="0"></div>' +
+          '<div class="paysplit-row"><label>Online</label><input type="number" id="psOnl" inputmode="numeric" min="0"></div>' +
+          '<div class="paysplit-hint" id="psHint"></div>' +
+          '<button class="paysheet-btn confirm" id="psOk">Confirm</button>' +
+        '</div>' +
+        '<button class="paysheet-cancel" data-pay="">Cancel</button>' +
+      '</div>';
+    document.body.appendChild(wrap);
+    requestAnimationFrame(()=>wrap.classList.add("on"));
+
+    let settled = false;
+    const done = v => { if(settled) return; settled = true; wrap.remove(); resolve(v); };
+
+    const box  = wrap.querySelector("#psBox");
+    const cEl  = wrap.querySelector("#psCash");
+    const oEl  = wrap.querySelector("#psOnl");
+    const hint = wrap.querySelector("#psHint");
+    const ok   = wrap.querySelector("#psOk");
+
+    // Type one side, the other fills itself. Nobody should be doing mental
+    // arithmetic at the counter with a customer waiting.
+    function show(){
+      const c = Math.round(Number(cEl.value) || 0), o = Math.round(Number(oEl.value) || 0);
+      const diff = (c + o) - due;
+      hint.className = "paysplit-hint" + (diff === 0 ? " ok" : " bad");
+      hint.textContent = diff === 0
+        ? money(c) + " cash + " + money(o) + " online = " + money(due)
+        : diff > 0 ? money(diff) + " more than the bill"
+                   : money(-diff) + " still to account for";
+      ok.disabled = diff !== 0;
+    }
+    cEl.oninput = ()=>{ if(cEl.value !== "") oEl.value = Math.max(0, due - Math.round(Number(cEl.value)||0)); show(); };
+    oEl.oninput = ()=>{ if(oEl.value !== "") cEl.value = Math.max(0, due - Math.round(Number(oEl.value)||0)); show(); };
+    ok.onclick  = ()=>{
+      const c = Math.round(Number(cEl.value) || 0), o = Math.round(Number(oEl.value) || 0);
+      if(c + o !== due) return;
+      done({ method: c === 0 ? "online" : o === 0 ? "cash" : "split", cash: c, online: o });
+    };
+
+    wrap.onclick = e => {
+      if(e.target === wrap) return done(null);
+      const b = e.target.closest("[data-pay]");
+      if(!b) return;
+      const v = b.dataset.pay;
+      if(v === "split"){ box.hidden = false; b.style.display = "none"; cEl.value = ""; oEl.value = ""; show(); cEl.focus(); return; }
+      if(v === "cash")   return done({ method:"cash",   cash: due, online: 0 });
+      if(v === "online") return done({ method:"online", cash: 0,   online: due });
+      done(null);
+    };
+  });
+}
+
+/* ---------- 9a. STOCK MOVEMENTS (owner) ----------
+   stock_log records every movement with a date. Deliveries carry the price
+   paid; sales are the till taking stock off the shelf; counts are a shelf
+   count correcting the figure. Owners only — the read policy enforces it. */
+let stockLog = [];          // newest first
+let stockLogFrom = null;    // how far back we have fetched
+
+async function loadStockLog(fromMs){
+  if(!sb || !isOwner()) return;
+  try{
+    const r = await sb.from("stock_log")
+      .select("id,item_id,delta,unit_cost,kind,note,at")
+      .gte("at", new Date(Math.max(0, fromMs)).toISOString())
+      .order("at", {ascending:false})
+      .limit(2000);
+    if(r.error) throw r.error;
+    stockLog = r.data || [];
+    stockLogFrom = fromMs;
+  }catch(e){
+    // The columns only exist once stock_in.sql has been run. Until then the
+    // Stock page simply shows what it always did rather than breaking.
+    console.warn("stock history unavailable:", e && e.message);
+    stockLog = [];
+  }
+}
+
+/* Fetch far enough back for whatever period is on screen. stockLogFrom
+   remembers how far we already went, so switching Today -> Month fetches
+   once and switching back fetches nothing. */
+async function ensureStockLog(p){
+  if(!sb || !isOwner()) return false;
+  const want = periodStart(p).getTime();
+  if(stockLogFrom !== null && stockLogFrom <= want) return false;
+  await loadStockLog(want);
+  return true;
+}
+
+/* The Stock Added list has its OWN period. It follows what came IN, which is
+   a different question from what was sold, so tying it to the sales filter
+   above it meant you could not look at a week of deliveries against a day of
+   takings. */
+let stockPeriod = "month";
+
+const deliveries = () => stockLog.filter(r => r.kind === "purchase");
+const deliveriesIn = p => {
+  const from = periodStart(p).getTime();
+  return deliveries().filter(r => new Date(r.at).getTime() >= from);
+};
+const lastDelivery = id => deliveries().find(r => r.item_id === id) || null;
+const spentIn = from => deliveries()
+  .filter(r => new Date(r.at).getTime() >= from)
+  .reduce((a,r) => a + (Number(r.delta)||0) * (Number(r.unit_cost)||0), 0);
+/* What the shelves are worth at what we paid, not at what we sell for. */
+const shelfValue = () => items.reduce((a,i) => a + Math.max(0, whole(i.stock)) * rupees(i.cost), 0);
+
+/* What a sale's payment tag should say.
+
+   A sale on a session's tab is settled with the gaming bill when the session
+   ends, so it carries the session's LABEL but no amounts of its own — the
+   session row on the Admin page holds the whole bill. Printing "Rs. 0 CASH"
+   for one of those was wrong in the way that matters: it read as no money
+   having changed hands, when in fact the money was recorded, just somewhere
+   else. It now says where. */
+function payTag(s){
+  const onSession = !!s.gz_session_id;
+  if(!s.pay_method) return '<span class="paytag none">NOT RECORDED</span>';
+
+  if(s.pay_method === "split"){
+    if(s.cash_amount == null || s.online_amount == null){
+      return '<span class="paytag split">SPLIT \u00b7 ' +
+             (onSession ? 'ON THE SESSION BILL' : 'AMOUNTS NOT RECORDED') + '</span>';
+    }
+    return '<span class="paytag split">' + money(s.cash_amount) + ' CASH + ' +
+           money(s.online_amount) + ' ONLINE</span>';
+  }
+
+  const word = s.pay_method === "cash" ? "CASH" : "ONLINE";
+  return '<span class="paytag ' + s.pay_method + '">' + word +
+         (onSession ? ' \u00b7 ON THE SESSION BILL' : '') + '</span>';
+}
+
+/* ---------- 9b. CORRECT HOW A SALE WAS PAID ----------
+   Owners only, and the payment method only. The items and the amount are not
+   editable here on purpose: changing what a sale SAYS it was is exactly the
+   hole that lets cash walk, so an amount that is wrong gets voided and rung
+   up again, which stays visible. Correcting cash-vs-online leaves the money
+   untouched and only makes the drawer add up, so it is safe to allow.
+
+   Goes to the database only — like a void. A payment correction that lived on
+   one phone would be worse than none at all. */
+function editPayment(id){
+  if(!isOwner()){ toast("Only an owner can change how a sale was paid", true); return; }
+  const s = sales.find(x => x.id === id);
+  if(!s){ toast("That sale is no longer here", true); return; }
+  if(s.voided){ toast("This sale is voided", true); return; }
+
+  const cur = s.pay_method || "";
+  const due = Math.round(Number(s.total) || 0);
+  const pick = v => `<button class="btn ${v===cur?"pri":"gh"}" data-set="${v}" style="flex:1">${
+      v==="cash" ? "💵 Cash" : v==="online" ? "📱 Online" : "⚠ Not recorded"}</button>`;
+
+  openSheet(`<h2>How was this paid?</h2>
+    <p style="color:var(--dim);font-size:13px;margin:0 0 12px">
+      ${money(s.total)} · ${esc((s.lines||[]).map(l=>l.qty+"× "+l.name).join(", ") || "—")}<br>
+      Only the payment method changes. The items and the amount stay as they are.
+    </p>
+    <div class="mrow" style="gap:8px;margin-bottom:10px">${pick("cash")}${pick("online")}</div>
+    <div class="mrow" style="gap:8px;margin-bottom:10px">
+      <button class="btn ${cur==="split"?"pri":"gh"}" id="epSplit" style="flex:1">⇆ Some cash, some online</button>
+    </div>
+    <div class="paysplit-box" id="epBox" ${cur==="split"?"":"hidden"} style="margin-bottom:10px">
+      <div class="paysplit-row"><label>Cash</label><input type="number" id="epCash" inputmode="numeric" min="0"
+        value="${cur==="split"?Math.round(Number(s.cash_amount)||0):""}"></div>
+      <div class="paysplit-row"><label>Online</label><input type="number" id="epOnl" inputmode="numeric" min="0"
+        value="${cur==="split"?Math.round(Number(s.online_amount)||0):""}"></div>
+      <div class="paysplit-hint" id="epHint"></div>
+      <button class="paysheet-btn confirm" id="epOk">Save the split</button>
+    </div>
+    <div class="mrow" style="gap:8px">${pick("")}<button class="btn gh" data-x style="flex:1">Cancel</button></div>`,
+  ()=>{
+    /* One place that writes the correction, whichever button asked for it.
+       The amounts go to the server, not the label — the label is derived
+       there, so it can never end up disagreeing with the money. */
+    async function apply(cash, onl, said){
+      if(!sb || !online){ toast("You need a connection to change this", true); return; }
+      document.querySelectorAll("[data-set],#epOk,#epSplit").forEach(x => x.disabled = true);
+      try{
+        const r = await sb.rpc("gz_set_payment_split",
+          { p_sale_id: id, p_session_id: null, p_cash: cash, p_online: onl });
+        if(r.error) throw r.error;
+        if(!Number(r.data)){ toast("That sale was not found on the server", true); return; }
+        const live = sales.find(x => x.id === id);
+        if(live){
+          live.pay_method   = (cash === 0 && onl === 0) ? null : onl === 0 ? "cash" : cash === 0 ? "online" : "split";
+          live.cash_amount   = (cash === 0 && onl === 0) ? null : cash;
+          live.online_amount = (cash === 0 && onl === 0) ? null : onl;
+        }
+        save(); closeSheet(); render();
+        toast(said);
+      }catch(e){
+        toast("Not changed: " + (e && e.message ? e.message : "failed"), true);
+        document.querySelectorAll("[data-set],#epOk,#epSplit").forEach(x => x.disabled = false);
+      }
+    }
+
+    document.querySelectorAll("[data-set]").forEach(b => b.onclick = ()=>{
+      const val = b.dataset.set || null;
+      apply(val === "cash" ? due : 0, val === "online" ? due : 0,
+            val ? "Marked as " + (val === "cash" ? "Cash" : "Online") : "Marked as not recorded");
+    });
+
+    const box = $("epBox"), cEl = $("epCash"), oEl = $("epOnl"), hint = $("epHint"), ok = $("epOk");
+    function show(){
+      const c = Math.round(Number(cEl.value) || 0), o = Math.round(Number(oEl.value) || 0);
+      const diff = (c + o) - due;
+      hint.className = "paysplit-hint" + (diff === 0 ? " ok" : " bad");
+      hint.textContent = diff === 0
+        ? money(c) + " cash + " + money(o) + " online = " + money(due)
+        : diff > 0 ? money(diff) + " more than the bill" : money(-diff) + " still to account for";
+      ok.disabled = diff !== 0;
+    }
+    $("epSplit").onclick = ()=>{ box.hidden = false; show(); cEl.focus(); };
+    cEl.oninput = ()=>{ if(cEl.value !== "") oEl.value = Math.max(0, due - Math.round(Number(cEl.value)||0)); show(); };
+    oEl.oninput = ()=>{ if(oEl.value !== "") cEl.value = Math.max(0, due - Math.round(Number(oEl.value)||0)); show(); };
+    ok.onclick  = ()=>{
+      const c = Math.round(Number(cEl.value) || 0), o = Math.round(Number(oEl.value) || 0);
+      if(c + o !== due) return;
+      apply(c, o, "Split saved: " + money(c) + " cash, " + money(o) + " online");
+    };
+    show();
+  });
+}
+
+/* ---------- 10. VOID ---------- */
+function voidSale(id){
+  const s = sales.find(x=>x.id===id);
+  if(!s) return;
+  if(s.voided){ toast("Already voided", true); return; }          // #14 double void
+  openSheet(`<h2>Void this sale?</h2>
+    <p style="color:var(--dim);font-size:13px;margin:0 0 4px">${money(s.total)} — stock is returned. The sale stays in the record marked VOID.</p>
+    <label>Reason (required)</label>
+    <input type="text" id="vr" placeholder="Why is this being voided?" maxlength="120" autocomplete="off">
+    <div class="mrow"><button class="btn gh" data-x>Cancel</button><button class="btn rd" id="vok">Void Sale</button></div>`,
+  ()=>{
+    $("vok").onclick = async ()=>{
+      const r = ($("vr").value || "").trim();
+      if(!r){ toast("Write a reason", true); return; }
+      const live = sales.find(x=>x.id===id);
+      if(!live || live.voided){ closeSheet(); render(); toast("Already voided", true); return; }
+
+      // A void changes the money record, so it only ever happens in the
+      // database. No connection, no void — never a void that exists on one
+      // phone and nowhere else. Selling still works offline; this does not.
+      if(!sb || !online){
+        Sound.error();
+        toast("Voiding needs internet. Selling still works — void it once the dot is green.", true);
+        return;
+      }
+      const btn = $("vok"); btn.disabled = true; btn.textContent = "Voiding…";
+      const at = new Date().toISOString(), by = currentUser();
+      try{
+        const res = await sb.from("sales")
+          .update({voided:true, void_reason:r, voided_by:by, voided_at:at})
+          .eq("id", id).eq("voided", false).select("id");
+        if(res.error) throw res.error;
+        if(!res.data || !res.data.length){
+          Sound.error();
+          toast("The database refused this void — it may already be voided, or too old for your account.", true);
+          btn.disabled = false; btn.textContent = "Void Sale";
+          return;
+        }
+      }catch(e){
+        Sound.error();
+        toast("Void failed: " + why(e) + ". Nothing was changed.", true);
+        btn.disabled = false; btn.textContent = "Void Sale";
+        return;
+      }
+
+      // The database accepted it. Only now does this device follow.
+      const missing = [];
+      live.voided = true; live.void_reason = r; live.voided_by = by; live.voided_at = at;
+      (live.lines||[]).forEach(l=>{
+        const it = items.find(i=>i.id===l.id);
+        if(it) it.stock += l.qty; else missing.push(l.name);      // #15 tell the truth
+      });
+      save();
+      closeSheet(); render(); Sound.voided();
+      toast(missing.length ? "Voided. Stock not returned for: " + missing.join(", ") : "Sale voided", missing.length?true:false);
+      for(const l of (live.lines||[])){
+        if(items.find(i=>i.id===l.id)) await pushStock(l.id, +l.qty);
+      }
+    };
+  });
+}
+
+/* ---------- 11. ITEM EDITOR (owner) ---------- */
+/* withStock is deliberately opt-in. Everywhere else stock moves as a DELTA
+   through adjust_stock, precisely so two phones cannot overwrite each other.
+   Sending it as an absolute here undid that: an owner opening Edit on Coke
+   (stock 20) to correct a price, while staff sold four at the counter, wrote
+   20 straight back over the server's 16 and silently restored the four sold
+   units. Only the first catalogue upload, into an empty table, sends stock. */
+function stripItem(i, withStock){
+  const row = {id:i.id, photo:i.photo||"", name:i.name, cost:rupees(i.cost), price:rupees(i.price), active:i.active!==false};
+  if(withStock) row.stock = whole(i.stock);
+  return row;
+}
+function itemModal(id){
+  if(!isOwner()) return;
+  const it = items.find(i=>i.id===id) || {name:"",cost:0,price:0,stock:0,active:true};
+  const isNew = !id;
+  let photo = it.photo || "";
+
+  const thumb = () => photo ? `<img src="${esc(stamp(safeSrc(photo)))}" alt="">` : FALLBACK;
+  const lib = () => `<div class="emopick" id="ep">${PRODUCTS.map(p=>{
+      const src = "./products/"+p[0]+".png";
+      return `<button data-p="${src}" class="${src===photo?"on":""}"><img src="${stamp(src)}" alt=""><span>${esc(p[1])}</span></button>`;
+    }).join("")}</div>`;
+
+  openSheet(`<h2>${isNew?"New Item":"Edit Item"}</h2>
+    <label>Product photo</label>
+    <div class="photorow">
+      <div class="thumb" id="pth">${thumb()}</div>
+      <div style="flex:1">
+        <button class="btn gh" id="pcam" style="width:100%">Take / choose photo</button>
+        <button class="btn gh" id="prm" style="width:100%;margin-top:7px">Clear photo</button>
+      </div>
+    </div>
+    <label>Or pick one of your products</label>
+    <div id="pk">${lib()}</div>
+    <label>Name</label><input type="text" id="fn" value="${esc(it.name)}" placeholder="e.g. Sooper Biscuit">
+    <div class="frow">
+      <div><label>Cost price (Rs.)</label><input type="number" id="fc" value="${it.cost}" inputmode="numeric"></div>
+      <div><label>Selling price (Rs.)</label><input type="number" id="fp" value="${it.price}" inputmode="numeric"></div>
+    </div>
+    ${isNew
+      ? `<label>Opening stock</label><input type="number" id="fs" value="0" inputmode="numeric">
+         <div class="hd-hint" style="margin-top:4px">Recorded as the first delivery, at the cost price above, so it shows in Stock Added.</div>`
+      : `<label>Stock on the shelf</label>
+         <div class="hd-hint" style="margin:2px 0 6px;font-size:13px"><b style="color:var(--txt);font-size:16px">${it.stock}</b>
+           &nbsp;— to add stock, tap <b>+</b> on this item in the Stock tab. It goes in at the cost price above.</div>`}
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px">
+      <input type="checkbox" id="fa" ${it.active!==false?"checked":""} style="width:auto"> Show in Sell screen
+    </label>
+    <div class="mrow">
+      <button class="btn gh" data-x>Cancel</button>
+      ${isNew?"":`<button class="btn rd" id="fdel">Delete</button>`}
+      <button class="btn pri" id="fok">Save</button>
+    </div>`,
+  ()=>{
+    const LIBNAMES = new Set(PRODUCTS.map(p=>p[1].trim().toLowerCase()));
+    function redraw(){ $("pk").innerHTML = lib(); $("pth").innerHTML = thumb(); bind(); }
+    function bind(){
+      $("ep").querySelectorAll("button").forEach(b=> b.onclick = ()=>{
+        photo = b.dataset.p;
+        const hit = PRODUCTS.find(p=>("./products/"+p[0]+".png")===photo);
+        const nm  = $("fn");
+        const cur = nm.value.trim().toLowerCase();
+        // Follow the picture: replace the name when the box is empty, or when it
+        // still holds a stock product name (i.e. an earlier pick). A name the
+        // owner typed himself is never overwritten.
+        if(hit && (!cur || LIBNAMES.has(cur))) nm.value = hit[1];
+        redraw();
+      });
+    }
+    bind();
+    $("pcam").onclick = ()=> pickPhoto(d => { photo = d; redraw(); toast("Photo added"); });
+    $("prm").onclick  = ()=> { if(!photo){ toast("No photo set", true); return; } photo = ""; redraw(); };
+
+    $("fok").onclick = async ()=>{
+      const name = $("fn").value.trim();
+      const cost = whole($("fc").value), price = whole($("fp").value);
+      const stock = isNew ? whole(($("fs")||{}).value) : whole(it.stock);
+      if(!name){ toast("Enter a name", true); return; }
+      if(name.length > 60){ toast("Name is too long", true); return; }
+      if(price > 100000 || cost > 100000 || stock > 100000){ toast("That number looks wrong", true); return; }
+      if(price < cost && price > 0 && !confirm("Selling price is below cost price. Save anyway?")) return;
+      // The stock box is a SHELF COUNT, not a field on the item. Stock moves
+      // as deltas everywhere else, so typing a number here used to change
+      // this phone only and be overwritten by the next sync — and it left
+      // no trace in the movement log, which makes "stock on that date"
+      // wrong from then on. A changed number now goes through record_count:
+      // owner-only, logged, and the same on every device.
+      // Only a NEW item carries a stock figure through this form, and it is
+      // its opening delivery. An existing item's stock is changed with the
+      // + button — one button, one meaning — never by typing over it here.
+      const stockChanged = isNew && stock > 0;
+      if(stockChanged && (!sb || !online)){
+        toast("Recording the opening stock needs a connection \u2014 the item was not saved", true); return;
+      }
+      let obj;
+      if(isNew){
+        obj = {id:uid(), photo, name, cost, price, stock:0, active:$("fa").checked};
+        items.push(obj);
+      }else{
+        const live = items.find(x=>x.id===id);          // #11 re-find; it may have been synced away
+        if(!live){ toast("That item no longer exists", true); closeSheet(); render(); return; }
+        Object.assign(live,{photo, name, cost, price, active:$("fa").checked});
+        obj = live;
+      }
+      save(); closeSheet(); render(); toast("Saved");
+      await push("itemUpsert", stripItem(obj));
+      if(stockChanged){
+        try{
+          // With a cost price it is a delivery like any other, and shows in
+          // Stock Added. Without one there is no price to record, so it goes
+          // in as an opening count.
+          const r = cost > 0
+            ? await sb.rpc("record_purchase", { p_id: obj.id, p_qty: stock, p_unit_cost: cost })
+            : await sb.rpc("record_count",    { p_id: obj.id, p_counted: stock, p_note: "opening stock" });
+          if(r.error) throw r.error;
+          obj.stock = Number(r.data); save();
+          await loadStockLog(0);
+          render();
+        }catch(e){
+          toast("Opening stock not recorded: " + (e && e.message ? e.message : "failed"), true);
+        }
+      }
+    };
+    const d = $("fdel");
+    if(d) d.onclick = async ()=>{
+      // Its deliveries go too. Left behind, they showed in Stock Added as a
+      // raw database id with no way to clear them — a permanent puzzle in
+      // the one record that has to be trustworthy. Sales keep their own
+      // lines, because those are money that actually came in.
+      if(!confirm("Delete " + it.name + "?\n\nIts delivery history goes with it. Past sales keep their record.")) return;
+      items = items.filter(x=>x.id!==it.id);
+      stockLog = stockLog.filter(x=>x.item_id!==it.id);
+      save(); closeSheet(); render(); toast("Deleted");
+      if(sb && online){
+        try{ await sb.rpc("delete_item_history", {p_item_id: it.id}); }
+        catch(e){ console.warn("delivery history not cleared:", e && e.message); }
+      }
+      await push("itemDelete",{id:it.id});
+    };
+  });
+}
+/* A delivery: how many arrived, and what each one cost.
+   The price is the whole point — without it there is no way to say what a
+   delivery cost or what has been made on it since. It is pre-filled with
+   what was paid last time, so on a normal week it is one tap. */
+function restockModal(id){
+  if(!isOwner()) return;
+  const it = items.find(i=>i.id===id); if(!it) return;
+  const last = lastDelivery(id);
+  // The price is the item's cost price, set once in Items. A delivery asks
+  // only how many — the price stays the same unless it is changed there.
+  const unitCost = rupees(it.cost);
+  if(unitCost <= 0){
+    toast("Set a cost price for " + it.name + " in Items first", true);
+    return;
+  }
+
+  openSheet(`<h2>Stock arrived</h2>
+    <p style="color:var(--dim);font-size:13px;margin:0 0 10px">
+      ${esc(it.name)} — ${it.stock} on the shelf${last
+        ? `<br>Last delivery ${new Date(last.at).toLocaleDateString("en-GB",{day:"2-digit",month:"short"})}: ${whole(last.delta)} at ${money(last.unit_cost)} each`
+        : "<br>First recorded delivery for this item"}
+    </p>
+    <label>How many arrived?</label>
+    <input type="number" id="rq" value="12" inputmode="numeric">
+    <div class="hd-hint" style="margin-top:4px">At <b>${money(unitCost)}</b> each — the cost price set in Items. Change it there if the supplier's price has changed.</div>
+    <input type="hidden" id="rc" value="${unitCost}">
+    <label>When did it arrive?</label>
+    <input type="date" id="rd" value="${esc(ymdLocal(new Date()))}" max="${esc(ymdLocal(new Date()))}">
+    <div id="rwhen" class="hd-hint" style="margin-top:6px"></div>
+    <div id="rtot" style="color:var(--dim);font-size:12.5px;margin:8px 0 2px"></div>
+    <div class="mrow"><button class="btn gh" data-x>Cancel</button><button class="btn pri" id="rok">Add to stock</button></div>`,
+  ()=>{
+    const q = $("rq"), c = $("rc"), t = $("rtot"), dt = $("rd"), when = $("rwhen"), ok = $("rok");
+    const logStart = logStartMs();
+    const logDay = logStart !== null ? dayOf(new Date(logStart).toISOString()) : null;
+    // A delivery dated before the log began is one that ALREADY moved the
+    // shelf, back when the old button did that without writing it down.
+    // Recording it now must write it down WITHOUT moving the shelf again.
+    const isPast = () => !!dt.value && logDay !== null && dt.value < logDay;
+    const tot = ()=>{ const n = whole(q.value), u = rupees(c.value);
+      t.textContent = (n>0 && u>0) ? `${n} × ${money(u)} = ${money(n*u)}` : "";
+      if(n>0 && u>0 && rupees(it.price) > 0 && u >= rupees(it.price))
+        t.textContent += "  ⚠ that is more than you sell it for";
+      if(isPast()){
+        when.innerHTML = `This is before deliveries were being recorded (${esc(niceDay(logDay))}). The units are already counted on the shelf, so this will be <b>written into the history only</b> — the shelf figure will not change.`;
+        ok.textContent = "Record past delivery";
+      } else {
+        when.textContent = dt.value && dt.value !== ymdLocal(new Date()) ? "Dated " + niceDay(dt.value) + " — the stock goes on the shelf now." : "";
+        ok.textContent = "Add to stock";
+      }
+    };
+    q.oninput = tot; c.oninput = tot; dt.onchange = tot; tot();
+
+    ok.onclick = async ()=>{
+      const n = whole(q.value), unit = rupees(c.value);
+      if(n <= 0){ toast("How many arrived?", true); return; }
+      if(n > 100000){ toast("That number looks wrong", true); return; }
+      if(unit <= 0){ toast("Set a cost price for this item in Items first", true); return; }
+      if(!dt.value){ toast("When did it arrive?", true); return; }
+      // A delivery is a money record, so it goes to the database or nowhere.
+      // Writing it locally would lose the price on the next sync.
+      if(!sb || !online){ toast("You need a connection to record a delivery", true); return; }
+
+      ok.disabled = true;
+      try{
+        if(isPast()){
+          // midday on the chosen day: unambiguous, and after the 4am boundary
+          const [y,m,d] = dt.value.split("-").map(Number);
+          const at = new Date(y, m-1, d, 12, 0, 0, 0).toISOString();
+          const r = await sb.rpc("record_purchase_backdated", { p_id:id, p_qty:n, p_unit_cost:unit, p_at:at });
+          if(r.error) throw r.error;
+        } else {
+          const r = await sb.rpc("record_purchase", { p_id:id, p_qty:n, p_unit_cost:unit });
+          if(r.error) throw r.error;
+          const live = items.find(x=>x.id===id);
+          if(live){ live.stock = Number(r.data); live.cost = unit; }
+          save();
+        }
+        await loadStockLog(0);
+        closeSheet(); render();
+        toast(isPast() ? `Recorded ${n} × ${esc(it.name)} on ${niceDay(dt.value)} · ${money(n*unit)}`
+                       : `Added ${n} × ${esc(it.name)} · ${money(n*unit)}`);
+      }catch(e){
+        ok.disabled = false;
+        toast("Not recorded: " + (e && e.message ? e.message : "failed"), true);
+      }
+    };
+  });
+}
+
+/* Counting the shelf. The difference is written down rather than absorbed. */
+function countModal(id){
+  if(!isOwner()) return;
+  const it = items.find(i=>i.id===id); if(!it) return;
+  openSheet(`<h2>Count the shelf</h2>
+    <p style="color:var(--dim);font-size:13px;margin:0 0 10px">
+      ${esc(it.name)} — the system says <b>${it.stock}</b>. Count what is actually there.
+    </p>
+    <label>How many did you count?</label>
+    <input type="number" id="cq" value="${it.stock}" inputmode="numeric">
+    <div id="cdiff" style="font-size:12.5px;margin:8px 0 2px"></div>
+    <div class="mrow"><button class="btn gh" data-x>Cancel</button><button class="btn pri" id="cok">Save count</button></div>`,
+  ()=>{
+    const q = $("cq"), dv = $("cdiff");
+    const show = ()=>{
+      const n = whole(q.value), d = n - whole(it.stock);
+      dv.innerHTML = d === 0 ? `<span style="color:var(--okl)">Matches — nothing missing</span>`
+        : d < 0 ? `<span style="color:var(--bad)">${Math.abs(d)} missing · ${money(Math.abs(d)*rupees(it.cost))} at cost</span>`
+        : `<span style="color:var(--warn)">${d} more than expected</span>`;
+    };
+    q.oninput = show; show();
+
+    $("cok").onclick = async ()=>{
+      const n = whole(q.value);
+      if(q.value === "" || n < 0){ toast("Enter what you counted", true); return; }
+      if(!sb || !online){ toast("You need a connection to save a count", true); return; }
+      $("cok").disabled = true;
+      try{
+        const r = await sb.rpc("record_count", { p_id:id, p_counted:n, p_note:null });
+        if(r.error) throw r.error;
+        const live = items.find(x=>x.id===id);
+        if(live) live.stock = Number(r.data);
+        save();
+        await loadStockLog(stockLogFrom != null ? stockLogFrom : Date.now() - 90*86400000);
+        closeSheet(); render();
+        toast("Count saved");
+      }catch(e){
+        $("cok").disabled = false;
+        toast("Not saved: " + (e && e.message ? e.message : "failed"), true);
+      }
+    };
+  });
+}
+
+/* ---------- 11b. PHOTO CAPTURE ---------- */
+/* Opens the camera or gallery, crops to a square and shrinks it so the
+   stored image stays a few KB rather than several MB. */
+function pickPhoto(cb){
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = "image/*";
+  inp.onchange = ()=>{
+    const f = inp.files && inp.files[0];
+    if(!f) return;
+    const fr = new FileReader();
+    fr.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const S = 220, c = document.createElement("canvas");
+        c.width = S; c.height = S;
+        const g = c.getContext("2d");
+        g.fillStyle = "#fff"; g.fillRect(0,0,S,S);
+        const m = Math.min(img.width, img.height);
+        g.drawImage(img, (img.width-m)/2, (img.height-m)/2, m, m, 0, 0, S, S);
+        try{ cb(c.toDataURL("image/jpeg", 0.72)); }
+        catch(e){ toast("Could not read that image", true); }
+      };
+      img.onerror = ()=> toast("Could not read that image", true);
+      img.src = fr.result;
+    };
+    fr.onerror = ()=> toast("Could not read that file", true);
+    fr.readAsDataURL(f);
+  };
+  inp.click();
+}
+
+/* ---------- 12. SHEET ---------- */
+function openSheet(html, after){
+  closeSheet();
+  const d = document.createElement("div");
+  d.className = "modal"; d.id = "sheet";
+  d.innerHTML = `<div class="sheet">${html}</div>`;
+  d.onclick = e=>{ if(e.target === d) closeSheet(); };
+  document.body.appendChild(d);
+  d.querySelectorAll("[data-x]").forEach(b=> b.onclick = closeSheet);
+  if(after) after();
+}
+function closeSheet(){ const s = $("sheet"); if(s) s.remove(); }
+
+/* ---------- 13. BOOT ---------- */
+$("btnPay").onclick   = checkout;
+$("btnClear").onclick = ()=>{ cart = {}; save(); render(); };
+$("btnOut").onclick   = logout;
+const bs = $("btnSound");
+if(bs){
+  const paint = ()=>{ bs.textContent = Sound.enabled ? "\u{1F50A}" : "\u{1F507}";
+                      bs.style.opacity = Sound.enabled ? "1" : ".55"; };
+  paint();
+  bs.onclick = ()=>{ const nowOn = Sound.toggle(); paint(); toast(nowOn ? "Sound on" : "Sound off"); };
+}
+const ag = $("authGo"); if(ag) ag.onclick = signIn;
+const ap = $("authPass"); if(ap) ap.addEventListener("keydown", e=>{ if(e.key === "Enter") signIn(); });
+/* No manual refresh button. The app keeps itself current:
+   - live updates arrive over the realtime channel
+   - the queue flushes the moment the connection returns
+   - and it quietly re-syncs whenever the app is brought back to the front. */
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden){ save(); return; }
+  if(sb && user && !realtimeAlive() && !rtRetry) subscribeRealtime();
+  if(sb){ flushQueue().then(()=>pull(true)).catch(()=>{}); }
+});
+window.addEventListener("pagehide", save);
+window.addEventListener("beforeunload", save);
+window.addEventListener("online",  verifyConnection);
+/* Safari fires online/offline events unreliably (especially on a file:// page),
+   and a false "offline" silently stops syncing. So treat the event as a hint
+   and confirm it with a real request before believing it. */
+let checking = false;
+async function verifyConnection(){
+  if(!sb || checking) return;
+  checking = true;
+  try{
+    const { error } = await sb.from("items").select("id").limit(1);
+    if(error) throw error;
+    setNet(true, "Synced");
+    flushQueue();
+  }catch(e){
+    setNet(false, "Offline — saved on device");
+  }finally{
+    checking = false;
+  }
+}
+window.addEventListener("offline", verifyConnection);
+
+/* One soft tap for every other button, without wiring each one by hand. */
+document.addEventListener("click", e=>{
+  const b = e.target.closest("button");
+  if(!b || b.disabled) return;
+  if(b.classList.contains("qb")) return;      // +/- have their own sounds
+  if(b.dataset.tab) return;                   // tabs have their own
+  if(b.id === "btnPay") return;               // the sale chime covers this
+  Sound.unlock();
+  Sound.tap();
+}, true);
+
+load();
+buildKeys();
+showLogin();
+restoreSession();
+
+if(!checkStorage()){
+  const note = document.createElement("div");
+  note.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:99;background:#E53935;"
+    + "color:#fff;padding:11px 14px;font-size:13px;font-weight:700;text-align:center";
+  note.textContent = location.protocol === "file:"
+    ? "This browser will not save data from a file:// page. Upload the folder and open it over http/https."
+    : "This browser is blocking storage (private mode?). Sales will NOT be saved.";
+  document.body.appendChild(note);
+}
+
+/* ---------- 14. OFFLINE SERVICE WORKER ---------- */
+/* Registers only when served over http(s). Fails silently if sw.js is absent,
+   so the app still works if you upload index.html on its own. */
+if("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("./sw.js")
+      .catch(err => console.warn("offline cache unavailable:", err && err.message));
+  });
+}
+</script>
+</body>
+</html>

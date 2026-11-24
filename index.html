@@ -133,7 +133,7 @@ const dayLabel = o => o === 0 ? 'Today' : o === 1 ? 'Tomorrow' : o === -1 ? 'Yes
 const dayDate  = o => { const p = pk(dayStart(o)); return p.getUTCDate() + ' ' + MO[p.getUTCMonth()]; };
 
 const S = { user:null, role:null, name:'', tab:'sessions', loaded:{}, err:'', busy:false,
-            machines:[], bookings:[], payments:[], urls:{}, day:0, modal:null, decl:null };
+            machines:[], bookings:[], payments:[], urls:{}, day:0, modal:null, decl:null, appr:null, apprVal:null };
 const isOwner = () => S.role === 'owner';
 const app = document.getElementById('app');
 
@@ -229,6 +229,7 @@ const stLabel = { pending:'Pending check', confirmed:'Confirmed', declined:'Decl
 
 function renderBookings(){
   const el = document.getElementById('bk'); if (!el) return;
+  const typed = document.getElementById('amt'); if (typed) S.apprVal = typed.value;
   const pend = S.bookings.filter(b => b.state === 'pending');
   const base = dayStart(S.day), end = base + 24 * H;
   const dayRows = S.bookings.filter(b => ['pending','confirmed','completed'].includes(b.state) && b.start_time < end && b.end_time > base);
@@ -242,7 +243,11 @@ function renderBookings(){
        <div class="meta mono">${esc(b.customer_phone)}</div><div class="meta">${esc(b.machine_id)} · ${esc(b.game)} · ${b.players} player${b.players > 1 ? 's' : ''}</div><div class="meta">${esc(when(b))}</div>
        <div class="meta" style="margin-top:8px">Says they sent <b style="color:var(--text)">${rs(p ? p.amount : 0)}</b> of ${rs(b.total)}</div></div></div>
        ${S.decl === b.id ? `<div class="tag" style="margin-top:14px">Why?</div><div class="acts">${['Payment not received','Wrong amount','Screenshot not clear'].map(r => `<button class="btn no" data-a="decline" data-v="${esc(b.id)}" data-r="${r}">${r}</button>`).join('')}<button class="btn ghost" data-a="decl" data-v="">Cancel</button></div>`
-        : `<div class="acts"><button class="btn ok" style="flex:1" data-a="approve" data-v="${esc(b.id)}">Approve</button><button class="btn no" data-a="decl" data-v="${esc(b.id)}">Decline</button></div>`}</div>`; }).join('') + `</div>`
+        : S.appr === b.id ? `<div class="tag" style="margin-top:14px">How much actually arrived in the account?</div>
+           <div class="field" style="margin-top:6px"><input id="amt" inputmode="numeric" value="${esc(S.apprVal != null ? S.apprVal : (p ? p.amount : ''))}" aria-label="Amount received in rupees"></div>
+           <div class="meta">Check your bank or wallet first. Type what you really received, even if it is less than they say.</div>
+           <div class="acts"><button class="btn ok" style="flex:1" data-a="approve2" data-v="${esc(b.id)}">Confirm received</button><button class="btn ghost" data-a="appr" data-v="">Back</button></div>`
+        : `<div class="acts"><button class="btn ok" style="flex:1" data-a="appr" data-v="${esc(b.id)}">Approve</button><button class="btn no" data-a="decl" data-v="${esc(b.id)}">Decline</button></div>`}</div>`; }).join('') + `</div>`
      : `<div class="glass empty">All payments checked. New uploads show here by themselves.</div>`);
 
   const hrs = []; for (let i = 0; i < 24; i++) hrs.push(base + i * H);
@@ -295,13 +300,22 @@ document.addEventListener('click', async e => {
   if (a === 'tab') show(v);
   else if (a === 'out') { await sb.auth.signOut(); location.reload(); }
   else if (a === 'day') { S.day = +v; renderBookings(); }
-  else if (a === 'decl') { S.decl = v || null; renderBookings(); }
+  else if (a === 'decl') { S.decl = v || null; S.appr = null; renderBookings(); }
+  else if (a === 'appr') { S.appr = v || null; S.apprVal = null; S.decl = null; const t = document.getElementById('amt'); if (t) t.remove(); renderBookings(); const i = document.getElementById('amt'); if (i) i.focus(); }
+  else if (a === 'approve2') {
+    const raw = (document.getElementById('amt') || {}).value || '', amt = Number(String(raw).replace(/[^0-9.]/g, ''));
+    if (!(amt > 0)) { alertBar('Type the amount that actually arrived.'); return; }
+    el.disabled = true;
+    const { error } = await sb.rpc('gz_decide_booking', { p_id: v, p_approve: true, p_reason: null, p_amount: amt });
+    if (error) { alertBar(error.message); el.disabled = false; return; }
+    S.appr = null; S.apprVal = null; await loadBookings();
+  }
   else if (a === 'zoom') { S.modal = { img: v }; modal(); }
   else if (a === 'detail') { S.modal = { id: v }; modal(); }
   else if (a === 'close') { S.modal = null; modal(); }
-  else if (a === 'approve' || a === 'decline') {
+  else if (a === 'decline') {
     el.disabled = true;
-    const { error } = await sb.rpc('gz_decide_booking', { p_id: v, p_approve: a === 'approve', p_reason: a === 'decline' ? el.dataset.r : null });
+    const { error } = await sb.rpc('gz_decide_booking', { p_id: v, p_approve: false, p_reason: el.dataset.r, p_amount: null });
     if (error) alertBar(error.message);
     S.decl = null; await loadBookings();
   }
@@ -316,7 +330,8 @@ document.addEventListener('click', async e => {
     if (error) { S.modal.err = error.message; modal(); } else { S.modal = null; modal(); await loadBookings(); }
   }
 });
-function alertBar(msg){ const el = document.getElementById('bk'); if (el) el.insertAdjacentHTML('afterbegin', `<div class="err" style="margin-bottom:12px">${esc(msg)}</div>`); }
+function alertBar(msg){ const el = document.getElementById('bk'); if (!el) return; const old = el.querySelector('.err.top'); if (old) old.remove();
+  el.insertAdjacentHTML('afterbegin', `<div class="err top" style="margin-bottom:12px">${esc(msg)}</div>`); window.scrollTo(0, 0); }
 
 /* Sessions and Snacks share this sign-in. If someone signs out or signs in as
    a different person inside one of them, this page must not keep showing the

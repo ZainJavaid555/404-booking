@@ -297,6 +297,7 @@ function receipt(){
   const b = S.receipt; if (!b) return home();
   const head2 = b.state === 'confirmed' ? ['Slot confirmed.', 'See you ' + whenText(b.start_time, b.end_time).split(' – ')[0] + '.']
               : b.state === 'declined'  ? ['Payment not confirmed', 'Reason: ' + (b.decline_reason || 'payment not received') + '. Message us on WhatsApp and we will sort it out.']
+              : b.state === 'cancelled' ? ['Booking cancelled', (b.cancel_reason ? 'Reason: ' + b.cancel_reason + '. ' : '') + 'Message us on WhatsApp about your payment.']
               : b.state === 'pending'   ? ['Slot built.', 'Your slot is locked. We are checking your payment and will confirm shortly.']
               : [stLabel[b.state] || 'Booking', ''];
   return `<div class="wrap">${head()}<div class="hero" style="padding-bottom:6px"><h2>${esc(head2[0])}</h2><p class="sub">${esc(head2[1])}</p></div>

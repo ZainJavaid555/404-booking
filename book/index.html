@@ -178,7 +178,7 @@ const isTaken = (m, start, end) => S.taken.some(t => t.machine_id === m && start
 
 async function loadBase(){
   const [m, i] = await Promise.all([
-    sb.from('gz_machines').select('id,platform,games,sort').eq('active', true).order('sort'),
+    sb.from('gz_machines').select('id,platform,games,sort').eq('active', true).eq('bookable', true).order('sort'),
     sb.rpc('gz_public_booking_info')
   ]);
   if (m.error) throw m.error;

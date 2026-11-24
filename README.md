@@ -27,6 +27,7 @@ the live repos on purpose.
 | `database/full_schema.sql` | Full structure of the live database (no data), exported 24 Nov 2026 |
 | `QA_REPORT.md` | What was tested, what was fixed and the open risks (25 Nov 2026) |
 | `database/close_public_functions.sql` | Removes public access from staff-only database functions |
+| `database/link_sessions_bookings.sql` | Sessions sit on named machines; bookings and sessions block each other; start a session from a booking |
 | `database/half_hours.sql` | Lets a session hold half hours (30-minute add-ons) |
 | `database/booking_tables.sql` | DRAFT: machines, bookings and payment proofs for the booking system |
 | `database/*.sql` (other) | The original snacks SQL files from the source repo |

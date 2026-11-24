@@ -88,7 +88,7 @@ iframe{display:block;width:100%;height:calc(100vh - var(--bar));border:0;backgro
 .blk{position:absolute;left:5px;right:5px;border-radius:9px;padding:0 9px 0 10px;text-align:left;overflow:hidden;display:flex;flex-direction:column;justify-content:center;border-left:3px solid;z-index:1}
 .blk b{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
 .blk span{font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
-.blk.confirmed{background:#d1fae5;border-color:var(--ok)}.blk.pending{background:#fef3c7;border-color:#f59e0b}.blk.completed{background:#e2e8f0;border-color:#94a3b8}
+.blk.confirmed{background:#d1fae5;border-color:var(--ok)}.blk.live{background:#bfdbfe;border-color:#2563eb}.blk.pending{background:#fef3c7;border-color:#f59e0b}.blk.completed{background:#e2e8f0;border-color:#94a3b8}
 .leg{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text-dim);margin-top:10px}
 .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
 table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -201,10 +201,10 @@ async function loadBookings(){
     const who = document.querySelector('.who'); if (who) who.textContent = S.name + ' \u00b7 ' + S.role;
   }
   const [m, b] = await Promise.all([
-    sb.from('gz_machines').select('id,platform,games,sort,active').order('sort'),
+    sb.from('gz_machines').select('*').order('sort'),
     sb.from('gz_bookings').select('*').gte('end_time', from).order('start_time')
   ]);
-  S.machines = (m.data || []).filter(x => x.active); S.bookings = b.data || [];
+  S.machines = (m.data || []).filter(x => x.active && x.bookable !== false); S.bookings = b.data || [];
   if (isOwner()) {
     const p = await sb.from('gz_booking_payments').select('*').eq('status', 'pending');
     S.payments = p.data || [];
@@ -215,12 +215,32 @@ async function loadBookings(){
       }
     }
   }
-  nav(); if (S.tab === 'bookings') renderBookings();
+  nav(); titleCount(); if (S.tab === 'bookings') renderBookings();
 }
-let chan = null;
+/* A new booking makes a sound, puts a count in the browser tab title and,
+   if the owner allowed it, shows a notification. The site must be open
+   somewhere for this to work: a closed browser hears nothing. */
+let chan = null, audioCtx = null;
+function beep(){
+  try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.22, 0.44].forEach(t => { const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type = 'sine'; o.frequency.value = 880;
+      g.gain.setValueAtTime(0.0001, audioCtx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.35, audioCtx.currentTime + t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + t + 0.18); o.connect(g); g.connect(audioCtx.destination);
+      o.start(audioCtx.currentTime + t); o.stop(audioCtx.currentTime + t + 0.2); }); } catch (e) {}
+}
+function titleCount(){ const n = S.bookings.filter(b => b.state === 'pending').length; document.title = (isOwner() && n ? '(' + n + ') ' : '') + '404 Gaming Zone'; }
+function newBookingAlert(row){
+  if (!isOwner() || !row || row.state !== 'pending') return;
+  beep();
+  try { if (window.Notification && Notification.permission === 'granted')
+    new Notification('New booking to check', { body: (row.customer_name || '') + ' \u00b7 ' + (row.machine_id || '') + ' \u00b7 ' + hm(row.start_time), tag: 'bk-' + row.id }); } catch (e) {}
+}
 function subscribe(){
   if (chan) return;
-  chan = sb.channel('gz-bookings').on('postgres_changes', { event:'*', schema:'public', table:'gz_bookings' }, () => loadBookings()).subscribe();
+  chan = sb.channel('gz-bookings').on('postgres_changes', { event:'*', schema:'public', table:'gz_bookings' }, p => {
+    if (p && p.eventType === 'INSERT') newBookingAlert(p.new);
+    loadBookings();
+  }).subscribe();
   setInterval(() => { if (S.tab === 'bookings' && !S.modal) renderBookings(); }, 60000);
 }
 const payFor = id => S.payments.find(p => p.booking_id === id);
@@ -236,7 +256,7 @@ function renderBookings(){
   const cols = 'grid-template-columns:58px repeat(' + Math.max(1, S.machines.length) + ',minmax(128px,1fr))';
   const nowTop = (Date.now() - base) / H * HH;
 
-  const queue = !isOwner() ? '' : `<div class="sec"><h2>Payments to check</h2><span class="tag">${pend.length} waiting</span></div>` +
+  const queue = !isOwner() ? '' : `<div class="sec"><h2>Payments to check</h2><span style="display:flex;gap:10px;align-items:center">${window.Notification && Notification.permission === 'default' ? `<button class="link" data-a="notify">Turn on alerts</button>` : ''}<span class="tag">${pend.length} waiting</span></span></div>` +
     (pend.length ? `<div class="grid">` + pend.map(b => { const p = payFor(b.id), url = p && S.urls[p.proof_path];
       return `<div class="glass card"><div class="proof"><div class="shot">${url ? `<img src="${esc(url)}" alt="Payment screenshot" data-a="zoom" data-v="${esc(url)}">` : 'No<br>screenshot'}</div>
        <div style="flex:1;min-width:0"><div class="tag">#${esc(b.booking_no)}</div><h3 style="margin-top:2px">${esc(b.customer_name)}</h3>
@@ -257,9 +277,9 @@ function renderBookings(){
      <div class="v-body" style="${cols};height:${24 * HH}px;background-size:100% ${HH}px"><div class="v-times">${hrs.map((t, i) => `<span style="top:${i * HH}px">${hm(t)}</span>`).join('')}</div>
       ${S.machines.map((m, mi) => `<div class="v-col"><div class="closed" style="top:${18 * HH}px;height:${6 * HH}px">${mi === Math.floor(S.machines.length / 2) ? 'Closed<br>3 AM – 9 AM' : ''}</div>
        ${dayRows.filter(b => b.machine_id === m.id).map(b => { const top = (b.start_time - base) / H * HH, hgt = (b.end_time - b.start_time) / H * HH - 4;
-         return `<button class="blk ${esc(b.state)}" data-a="detail" data-v="${esc(b.id)}" style="top:${top + 2}px;height:${hgt}px"><b>${esc(b.customer_name)}</b><span>${esc(b.game)}${hgt < 58 ? ' · ' + hm(b.start_time) + ' – ' + hm(b.end_time) : ''}</span>${hgt >= 58 ? `<span>${hm(b.start_time)} – ${hm(b.end_time)}</span>` : ''}</button>`; }).join('')}</div>`).join('')}
+         return `<button class="blk ${esc(b.state)} ${b.session_id && b.state === 'confirmed' ? 'live' : ''}" data-a="detail" data-v="${esc(b.id)}" style="top:${top + 2}px;height:${hgt}px"><b>${esc(b.customer_name)}</b><span>${esc(b.game)}${hgt < 58 ? ' · ' + hm(b.start_time) + ' – ' + hm(b.end_time) : ''}</span>${hgt >= 58 ? `<span>${hm(b.start_time)} – ${hm(b.end_time)}</span>` : ''}</button>`; }).join('')}</div>`).join('')}
       ${nowTop >= 0 && nowTop <= 24 * HH ? `<div class="now" style="top:${nowTop}px"></div>` : ''}</div></div></div>
-    <div class="leg"><span><i style="background:var(--ok)"></i>Confirmed</span><span><i style="background:#f59e0b"></i>Pending check</span><span><i style="background:#94a3b8"></i>Finished</span><span><i style="background:var(--danger)"></i>Now</span><span>Tap a booking for details.</span></div>`;
+    <div class="leg"><span><i style="background:var(--ok)"></i>Confirmed</span><span><i style="background:#2563eb"></i>Playing now</span><span><i style="background:#f59e0b"></i>Pending check</span><span><i style="background:#94a3b8"></i>Finished</span><span><i style="background:var(--danger)"></i>Now</span><span>Tap a booking for details.</span></div>`;
 
   const list = `<div class="sec"><h2>Day list</h2><span class="tag">${dayLabel(S.day)} · ${dayDate(S.day)}</span></div><div class="glass" style="overflow-x:auto"><table>
      <tr><th>Time</th><th>Machine</th><th>Customer</th><th>Phone</th><th>Game</th><th>Players</th><th>Paid</th><th>Collect</th><th>Status</th></tr>
@@ -279,6 +299,9 @@ function modal(){
   if (S.modal.img) { el.innerHTML = `<div class="modal" data-a="close"><div class="sheet"><img class="full" src="${esc(S.modal.img)}" alt="Payment screenshot"><button class="btn ghost" style="margin-top:12px;width:100%" data-a="close">Close</button></div></div>`; return; }
   const b = S.bookings.find(x => x.id === S.modal.id); if (!b) { S.modal = null; el.innerHTML = ''; return; }
   const canCancel = isOwner() && ['pending','confirmed'].includes(b.state) && !b.session_id;
+  const nowT = Date.now();
+  const playing = b.state === 'confirmed' && !!b.session_id;
+  const canStart = b.state === 'confirmed' && !b.session_id && nowT >= b.start_time - 15 * 60000 && nowT < b.end_time;
   const late = Date.now() >= b.start_time + 30 * 60000, canRelease = b.state === 'confirmed' && !b.session_id && b.paid < b.total && late;
   el.innerHTML = `<div class="modal" data-a="close"><div class="sheet" data-stop="1"><div style="display:flex;justify-content:space-between;align-items:center"><span class="tag">${esc(b.machine_id)} · #${esc(b.booking_no)}</span><span class="st ${esc(b.state)}">${esc(stLabel[b.state] || b.state)}</span></div>
     <h2 style="margin-top:8px">${esc(b.customer_name)}</h2><div class="meta mono">${esc(b.customer_phone)}</div>
@@ -290,6 +313,10 @@ function modal(){
     ${canCancel && S.modal.cancel ? `<div class="tag" style="margin-top:16px">Why is it being cancelled?</div>
       ${b.paid > 0 ? `<div class="meta" style="margin-top:6px">${rs(b.paid)} was received for this booking. Cancelling does not send it back: settle the refund or credit with the customer.</div>` : ''}
       <div class="acts">${['Customer asked to cancel','Customer did not come','Machine not available','Booked by mistake'].map(r => `<button class="btn no" data-a="cancel2" data-v="${esc(b.id)}" data-r="${r}">${r}</button>`).join('')}</div>` : ''}
+    ${playing ? `<div class="meta" style="margin-top:12px;color:var(--ok);font-weight:600">Session is running. See the Sessions tab.</div>` : ''}
+    ${b.state === 'pending' && nowT >= b.start_time - 15 * 60000 ? `<div class="meta" style="margin-top:12px;color:var(--warn);font-weight:600">Payment not approved yet. An owner must approve before the session can start.</div>` : ''}
+    ${canStart ? `<button class="btn ok wide" style="margin-top:14px" data-a="startbk" data-v="${esc(b.id)}">Start session on ${esc(b.machine_id)}</button>
+      <div class="meta" style="margin-top:6px">The clock runs from the booked time, ${hm(b.start_time)}. ${b.total - b.paid > 0 ? 'Collect ' + rs(b.total - b.paid) + ' when the session ends.' : 'Already paid in full.'}</div>` : ''}
     <div class="acts">${canCancel && !S.modal.cancel ? `<button class="btn no" data-a="cancel1">Cancel booking</button>` : ''}${canRelease ? `<button class="btn no" data-a="release" data-v="${esc(b.id)}">Release seat (30+ min late)</button>` : ''}<button class="btn ghost" style="flex:1" data-a="close">Close</button></div></div></div>`;
 }
 
@@ -319,6 +346,13 @@ document.addEventListener('click', async e => {
     if (error) alertBar(error.message);
     S.decl = null; await loadBookings();
   }
+  else if (a === 'startbk') {
+    el.disabled = true;
+    const { error } = await sb.rpc('gz_start_booking', { p_id: v });
+    if (error) { S.modal.err = error.message; modal(); }
+    else { S.modal = null; modal(); await loadBookings(); show('sessions'); }
+  }
+  else if (a === 'notify') { try { await Notification.requestPermission(); } catch (e) {} beep(); renderBookings(); }
   else if (a === 'cancel1') { S.modal.cancel = true; S.modal.err = ''; modal(); }
   else if (a === 'cancel2') {
     el.disabled = true;

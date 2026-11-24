@@ -25,6 +25,8 @@ the live repos on purpose.
 | `admin/` | Session manager (copy of `admin404`, 24 Nov 2026), with game cover images |
 | `snacks/` | Snacks counter app (copy of `snacks`, 24 Nov 2026) |
 | `database/full_schema.sql` | Full structure of the live database (no data), exported 24 Nov 2026 |
+| `QA_REPORT.md` | What was tested, what was fixed and the open risks (25 Nov 2026) |
+| `database/close_public_functions.sql` | Removes public access from staff-only database functions |
 | `database/half_hours.sql` | Lets a session hold half hours (30-minute add-ons) |
 | `database/booking_tables.sql` | DRAFT: machines, bookings and payment proofs for the booking system |
 | `database/*.sql` (other) | The original snacks SQL files from the source repo |

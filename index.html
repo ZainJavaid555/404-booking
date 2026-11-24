@@ -191,6 +191,15 @@ function show(tab){
 /* ----------------------------------------------------------- bookings */
 async function loadBookings(){
   const from = dayStart(-1);
+  /* Never trust the role this page remembered: ask the database who is signed in. */
+  const me = await sb.auth.getUser();
+  const uid = me.data && me.data.user ? me.data.user.id : null;
+  if (!uid || (S.user && uid !== S.user.id)) { location.reload(); return; }
+  const prof = await sb.from('profiles').select('name,role').eq('id', uid).maybeSingle();
+  if (prof.data && (prof.data.role !== S.role || prof.data.name !== S.name)) {
+    S.role = prof.data.role; S.name = prof.data.name;
+    const who = document.querySelector('.who'); if (who) who.textContent = S.name + ' \u00b7 ' + S.role;
+  }
   const [m, b] = await Promise.all([
     sb.from('gz_machines').select('id,platform,games,sort,active').order('sort'),
     sb.from('gz_bookings').select('*').gte('end_time', from).order('start_time')
@@ -308,6 +317,15 @@ document.addEventListener('click', async e => {
   }
 });
 function alertBar(msg){ const el = document.getElementById('bk'); if (el) el.insertAdjacentHTML('afterbegin', `<div class="err" style="margin-bottom:12px">${esc(msg)}</div>`); }
+
+/* Sessions and Snacks share this sign-in. If someone signs out or signs in as
+   a different person inside one of them, this page must not keep showing the
+   old person's name, role and buttons: start again as whoever is signed in now. */
+sb.auth.onAuthStateChange((event, session) => {
+  const nowId = session && session.user ? session.user.id : null, wasId = S.user ? S.user.id : null;
+  if (!wasId) return;                                   // still on the sign-in screen
+  if (nowId !== wasId) setTimeout(() => location.reload(), 50);
+});
 
 (async () => {
   const { data } = await sb.auth.getSession();

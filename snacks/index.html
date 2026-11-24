@@ -492,6 +492,16 @@ function itemVisual(i, cls){
   if(i && i.photo) return '<span class="'+cls+' ph"><img src="'+esc(stamp(safeSrc(i.photo)))+'" alt=""></span>';
   return '<span class="'+cls+'">'+FALLBACK+'</span>';
 }
+/* A product photo that is missing or fails to load falls back to the same
+   placeholder icon used for items with no photo, instead of a broken image. */
+document.addEventListener("error", function(e){
+  const t = e.target;
+  if(!t || t.tagName !== "IMG") return;
+  const box = t.closest ? t.closest(".ph") : null;
+  if(!box) return;
+  box.classList.remove("ph");
+  box.innerHTML = FALLBACK;
+}, true);
 /* Only allow image sources we generate ourselves. Blocks javascript:/onerror
    payloads once rows start arriving from the database. */
 function safeSrc(u){

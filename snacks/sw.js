@@ -2,7 +2,7 @@
    Caches the app shell so it opens with no internet.
    Bump CACHE when you upload a new version of index.html. */
 
-const CACHE = "404snacks-v45";
+const CACHE = "404snacks-v46";
 const SHELL = [
   "./",
   "./index.html",

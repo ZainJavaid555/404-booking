@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0891b2">
+<title>404 Gaming Zone — Build Your Own Slot</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link href="https://fonts.gstatic.com" rel="preconnect" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Bricolage+Grotesque:wght@600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#e8eef5; --bg-2:#dde6ef; --surface:rgba(255,255,255,.62); --surface-3:rgba(255,255,255,.82);
+  --border:rgba(15,23,42,.08); --border-strong:rgba(15,23,42,.16);
+  --text:#0b1726; --text-dim:#475569; --text-faint:#94a3b8;
+  --accent:#0891b2; --accent-strong:#0e7490; --accent-soft:#67e8f9; --violet:#8b5cf6;
+  --warning:#f59e0b; --danger:#ef4444; --ok:#059669;
+  --radius:18px; --radius-sm:12px;
+  --shadow:0 1px 0 rgba(255,255,255,.7) inset,0 20px 50px -10px rgba(15,76,129,.18),0 8px 24px -8px rgba(15,76,129,.12);
+  --shadow-sm:0 1px 0 rgba(255,255,255,.6) inset,0 8px 24px -6px rgba(15,76,129,.15);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Space Grotesk',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(60% 40% at 15% 0%,rgba(103,232,249,.35),transparent 70%),radial-gradient(50% 40% at 95% 10%,rgba(139,92,246,.18),transparent 70%);background-attachment:fixed}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input{font:inherit;color:inherit}
+.wrap{max-width:540px;margin:0 auto;padding:18px 16px 150px}
+header{display:flex;align-items:center;justify-content:space-between;padding:6px 2px 18px}
+.brand{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:20px;letter-spacing:-.02em}
+.brand span{color:var(--accent)}
+.mono{font-family:'JetBrains Mono',monospace}
+.tag{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim)}
+h1{font-family:'Bricolage Grotesque',sans-serif;font-size:40px;line-height:1.02;letter-spacing:-.03em;font-weight:800}
+h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;letter-spacing:-.02em;font-weight:700;line-height:1.15}
+.sub{color:var(--text-dim);margin-top:8px}
+.glass{background:var(--surface);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.card{padding:18px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:56px;border-radius:14px;font-weight:700;font-size:16px;color:#fff;
+  background:linear-gradient(135deg,var(--accent),#4f6bd8);box-shadow:0 10px 24px -8px rgba(8,145,178,.55);transition:transform .1s,filter .15s}
+.btn:hover{filter:brightness(1.06)}.btn:active{transform:scale(.985)}
+.btn[disabled]{background:#cbd5e1;box-shadow:none;cursor:not-allowed;color:#fff}
+.btn.ghost{background:var(--surface-3);color:var(--text);border:1px solid var(--border-strong);box-shadow:none}
+.hero{padding:26px 0 20px}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.fact{padding:14px 8px;text-align:center}
+.fact b{display:block;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;white-space:nowrap}
+.fact span{font-size:11px;color:var(--text-dim)}
+.how{margin-top:16px;display:grid;gap:8px}
+.how .glass{display:flex;gap:14px;align-items:center;padding:14px 16px}
+.num{flex:none;width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--violet));color:#fff;display:grid;place-items:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px}
+.how b{display:block;font-size:15px}.how small{color:var(--text-dim);font-size:13px}
+.foot{margin-top:22px;text-align:center;color:var(--text-faint);font-size:12px;line-height:1.7}
+.prog{display:flex;gap:6px;margin-bottom:18px}
+.prog i{flex:1;height:5px;border-radius:9px;background:rgba(15,23,42,.1)}
+.prog i.on{background:linear-gradient(90deg,var(--accent),var(--violet))}
+.opts{display:grid;gap:10px;margin-top:16px}
+.opts.two{grid-template-columns:1fr 1fr}
+.opt{position:relative;text-align:left;padding:16px;min-height:84px;display:flex;flex-direction:column;justify-content:center;border:1.5px solid var(--border);transition:border-color .15s,transform .15s}
+.opt:hover{transform:translateY(-1px);border-color:var(--border-strong)}
+.opt.sel{border-color:var(--accent);background:rgba(8,145,178,.08)}
+.opt.sel::after{content:"✓";position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700}
+.opt .big{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;font-weight:800;letter-spacing:-.02em}
+.opt .t{font-weight:700;font-size:16px}
+.opt .s{font-size:12.5px;color:var(--text-dim);margin-top:4px}
+.chips{display:flex;gap:8px;overflow-x:auto;margin:14px -16px 0;padding:2px 16px 6px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;min-width:74px;padding:10px 12px;text-align:center;border:1.5px solid var(--border)}
+.chip b{display:block;font-size:14px}.chip span{font-size:11px;color:var(--text-dim)}
+.chip.sel{background:var(--text);color:#fff;border-color:var(--text)}.chip.sel span{color:#cbd5e1}
+.lab{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);margin:20px 0 8px}
+.stepper{display:flex;align-items:center;justify-content:space-between;padding:10px}
+.stepper .v{font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;text-align:center}
+.rb{width:50px;height:50px;border-radius:12px;background:rgba(15,23,42,.06);font-size:24px;display:grid;place-items:center}
+.rb[disabled]{opacity:.35;cursor:not-allowed}
+.grp{font-size:11px;font-weight:600;color:var(--text-faint);text-transform:uppercase;letter-spacing:.12em;margin:14px 0 8px}
+.times{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.time{min-height:56px;border:1.5px solid var(--border);font-weight:700;font-size:15px}
+.time small{display:block;font-size:11px;font-weight:500;color:var(--text-dim)}
+.time.sel{background:linear-gradient(135deg,var(--accent),#4f6bd8);border-color:transparent;color:#fff}.time.sel small{color:rgba(255,255,255,.8)}
+.time[disabled]{background:transparent;box-shadow:none;border-style:dashed;color:var(--text-faint);cursor:not-allowed}
+.time[disabled] small{color:var(--text-faint)}
+.field{margin-top:12px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+.field input{width:100%;height:54px;border-radius:14px;border:1.5px solid var(--border-strong);padding:0 16px;background:var(--surface-3);outline:none;font-size:16px}
+.field input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(8,145,178,.15)}
+.line{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--border);font-size:14.5px}
+.line:last-child{border-bottom:0}.line span{color:var(--text-dim)}.line b{text-align:right}
+.amount{font-family:'Bricolage Grotesque',sans-serif;font-size:36px;font-weight:800;letter-spacing:-.03em}
+.acct{margin-top:10px;font-size:14px;line-height:1.7}.acct b{font-family:'JetBrains Mono',monospace}
+.up{display:block;margin-top:12px;border:1.5px dashed var(--border-strong);border-radius:var(--radius);padding:22px;text-align:center;cursor:pointer;background:var(--surface)}
+.up.has{border-style:solid;border-color:var(--ok);background:rgba(5,150,105,.08)}
+.up img{max-height:130px;border-radius:10px;display:block;margin:0 auto 8px}
+.tiny{font-size:12.5px;color:var(--text-dim)}
+.rules{margin-top:16px;display:grid;gap:8px;font-size:12.5px;color:var(--text-dim)}
+.rules div{padding-left:14px;position:relative}.rules div::before{content:"";position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:10;background:rgba(232,238,245,.86);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--border)}
+.bar-in{max-width:540px;margin:0 auto;padding:12px 16px calc(14px + env(safe-area-inset-bottom))}
+.slot{display:flex;gap:10px;align-items:center;margin-bottom:10px;font-size:13px;color:var(--text-dim)}
+.slot .d{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot .d b{color:var(--text)}
+.slot .p{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text);font-size:16px}
+.row{display:flex;gap:10px}
+.row .back{flex:none;width:56px;background:var(--surface-3);color:var(--text);border:1px solid var(--border-strong);box-shadow:none}
+.st{display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:99px;padding:6px 10px;white-space:nowrap}
+.st.pending{background:#fef3c7;color:#92400e}.st.confirmed{background:#d1fae5;color:#065f46}.st.declined,.st.cancelled,.st.released{background:#fee2e2;color:#991b1b}.st.completed{background:#e2e8f0;color:#475569}
+.err{margin-top:12px;padding:12px 14px;border-radius:12px;background:#fee2e2;color:#991b1b;font-size:14px;font-weight:500}
+.spin{width:40px;height:40px;border-radius:50%;border:3px solid rgba(15,23,42,.12);border-top-color:var(--accent);animation:sp .8s linear infinite;margin:70px auto 20px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.center{text-align:center}
+@media(max-width:380px){h1{font-size:34px}}
+</style>
+</head>
+<body>
+<div id="app"><div class="wrap center"><div class="spin"></div><p class="sub">Loading…</p></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+/* =====================================================================
+   404 Gaming Zone — Build Your Own Slot (customer booking page)
+   Talks to the TEST database only. Customers are not signed in: every
+   write goes through a database function that checks the rules.
+   ===================================================================== */
+const CONFIG = {
+  SUPABASE_URL : "https://bxviqxrbyjtsrfwtmsbe.supabase.co",
+  SUPABASE_KEY : "sb_publishable_tqCGSzSoWPU-coZr6SGzwQ_MPmv74b-",
+  WHATSAPP     : "923244099700"
+};
+const sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY, { auth:{ persistSession:false } });
+
+const H = 3600000, OPEN = 9, CLOSE_AFTER = 18;         // open 9 AM, for 18 hours (until 3 AM)
+const PKT = 5 * H;                                       // Lahore is UTC+5, no daylight saving
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rs  = n => 'Rs ' + Math.round(n).toLocaleString('en-PK');
+const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const pk  = ms => new Date(ms + PKT);                    // read with getUTC* to get Lahore wall time
+const hl  = ms => { const h = pk(ms).getUTCHours(); return (h % 12 || 12) + ' ' + (h < 12 ? 'AM' : 'PM'); };
+/* A business day starts at 9 AM Lahore time. Before 9 AM we are still in yesterday's night. */
+function dayStart(offset){
+  const now = Date.now(), p = pk(now);
+  let base = Date.UTC(p.getUTCFullYear(), p.getUTCMonth(), p.getUTCDate(), OPEN) - PKT;
+  if (now < base) base -= 24 * H;
+  return base + offset * 24 * H;
+}
+const dayLabel = o => o === 0 ? 'Today' : o === 1 ? 'Tomorrow' : WD[pk(dayStart(o)).getUTCDay()];
+const dayDate  = o => { const p = pk(dayStart(o)); return p.getUTCDate() + ' ' + MO[p.getUTCMonth()]; };
+const whenText = (start, end) => { const p = pk(start); const late = p.getUTCHours() < OPEN ? ' (after midnight)' : '';
+  return WD[p.getUTCDay()] + ' ' + p.getUTCDate() + ' ' + MO[p.getUTCMonth()] + ', ' + hl(start) + ' – ' + hl(end) + late; };
+
+const S = { view:'home', step:1, machines:[], info:{rate:400,extra:100,advance_pct:50}, taken:[], busy:false, err:'',
+            sel:null, receipt:null };
+const fresh = () => ({ m:null, game:null, day:0, start:null, hours:1, players:2, name:'', phone:'', full:false, file:null, preview:null });
+S.sel = fresh();
+const price = () => S.sel.hours * (S.info.rate + Math.max(0, S.sel.players - 2) * S.info.extra);
+const due   = () => S.sel.full ? price() : Math.ceil(price() * S.info.advance_pct / 100);
+const phoneOk = p => /^03[0-9]{9}$/.test(p.replace(/[\s-]/g, ''));
+const ready = () => S.sel.name.trim().length > 1 && phoneOk(S.sel.phone) && !!S.sel.file;
+const isTaken = (m, start, end) => S.taken.some(t => t.machine_id === m && start < t.end_time && t.start_time < end);
+
+async function loadBase(){
+  const [m, i] = await Promise.all([
+    sb.from('gz_machines').select('id,platform,games,sort').eq('active', true).order('sort'),
+    sb.rpc('gz_public_booking_info')
+  ]);
+  if (m.error) throw m.error;
+  S.machines = m.data || [];
+  if (i.data) S.info = Object.assign(S.info, i.data);
+}
+async function loadTaken(){
+  const from = dayStart(S.sel.day), to = from + CLOSE_AFTER * H;
+  const { data, error } = await sb.rpc('gz_public_slots', { p_from: from, p_to: to });
+  if (!error) S.taken = data || [];
+}
+
+const app = document.getElementById('app');
+function render(){
+  if (S.busy) { app.innerHTML = `<div class="wrap center"><div class="spin"></div><h2>${esc(S.busy)}</h2><p class="sub">This takes a few seconds.</p></div>`; return; }
+  app.innerHTML = S.view === 'home' ? home() : S.view === 'receipt' ? receipt() : builder();
+}
+const head = () => `<header><div class="brand">404 <span>Gaming Zone</span></div><span class="tag">Build your own slot</span></header>`;
+function home(){
+  const saved = lastBooking();
+  return `<div class="wrap">${head()}
+   <div class="hero"><h1>Build your<br>own <em>slot.</em></h1><p class="sub">Pick a machine, a game and a time. Done in one minute.</p></div>
+   <button class="btn" data-a="start">Build my slot →</button>
+   ${saved ? `<button class="btn ghost" style="margin-top:10px" data-a="mine">See my booking #${esc(saved.no)}</button>` : ''}
+   <div class="facts"><div class="fact glass"><b>${rs(S.info.rate)}</b><span>per hour</span></div><div class="fact glass"><b>2 players</b><span>included</span></div><div class="fact glass"><b>9AM – 3AM</b><span>every day</span></div></div>
+   <div class="how"><div class="glass"><span class="num">1</span><div><b>Build your slot</b><small>Machine, game, time and players.</small></div></div>
+   <div class="glass"><span class="num">2</span><div><b>Pay ${S.info.advance_pct}% now</b><small>Send the advance and upload the screenshot.</small></div></div>
+   <div class="glass"><span class="num">3</span><div><b>Come and play</b><small>Your machine is ready at your time.</small></div></div></div>
+   <p class="foot">Sami Town, Azizpull, Taj Bagh Scheme, Lahore<br>0324 4099700</p></div>`;
+}
+const STEPS = ['Machine','Game','Time','Players','Pay'];
+function builder(){
+  const s = S.sel, st = S.step; let body = '';
+  if (st === 1) {
+    body = `<h2>Pick your machine</h2><div class="opts two">` + S.machines.map(m =>
+      `<button class="opt glass ${s.m === m.id ? 'sel' : ''}" data-a="m" data-v="${esc(m.id)}"><div class="big">${esc(m.id)}</div><div class="s">${esc((m.platform || '').toUpperCase())} · ${(m.games || []).length} games</div></button>`).join('') + `</div>`;
+  }
+  if (st === 2) {
+    const m = S.machines.find(x => x.id === s.m);
+    body = `<h2>Pick your game</h2><p class="sub">Games on ${esc(s.m)}</p><div class="opts">` + (m.games || []).map(g =>
+      `<button class="opt glass ${s.game === g ? 'sel' : ''}" style="min-height:64px" data-a="game" data-v="${esc(g)}"><div class="t">${esc(g)}</div></button>`).join('') + `</div>`;
+  }
+  if (st === 3) {
+    const base = dayStart(s.day), groups = [['Morning',0,3],['Afternoon',3,8],['Evening',8,12],['Night',12,18]]; let any = false;
+    const html = groups.map(([name, a, b]) => {
+      const btns = [];
+      for (let i = a; i < b; i++) {
+        const start = base + i * H, end = start + s.hours * H;
+        if (i + s.hours > CLOSE_AFTER) continue;
+        if (start < Date.now()) continue;
+        any = true; const taken = isTaken(s.m, start, end);
+        btns.push(`<button class="time glass ${s.start === start ? 'sel' : ''}" ${taken ? 'disabled' : ''} data-a="time" data-v="${start}">${hl(start)}<small>${taken ? 'Taken' : 'to ' + hl(end)}</small></button>`);
+      }
+      return btns.length ? `<div class="grp">${name}</div><div class="times">${btns.join('')}</div>` : '';
+    }).join('');
+    body = `<h2>Pick your time</h2>
+     <div class="chips">${[0,1,2,3,4,5,6].map(d => `<button class="chip glass ${s.day === d ? 'sel' : ''}" data-a="day" data-v="${d}"><b>${dayLabel(d)}</b><span>${dayDate(d)}</span></button>`).join('')}</div>
+     <div class="lab">How long?</div>
+     <div class="stepper glass"><button class="rb" data-a="hrs" data-v="-1" ${s.hours <= 1 ? 'disabled' : ''}>−</button><div class="v">${s.hours} hour${s.hours > 1 ? 's' : ''}</div><button class="rb" data-a="hrs" data-v="1" ${s.hours >= 6 ? 'disabled' : ''}>+</button></div>
+     <div class="lab">Start time</div>${any ? html : '<p class="sub center" style="padding:30px 0">No times left on this day. Try another day.</p>'}`;
+  }
+  if (st === 4) {
+    const extra = Math.max(0, s.players - 2);
+    body = `<h2>How many players?</h2><p class="sub">2 players are included.</p>
+     <div class="stepper glass" style="margin-top:16px"><button class="rb" data-a="pl" data-v="-1" ${s.players <= 1 ? 'disabled' : ''}>−</button><div class="v">${s.players} player${s.players > 1 ? 's' : ''}</div><button class="rb" data-a="pl" data-v="1" ${s.players >= 4 ? 'disabled' : ''}>+</button></div>
+     <div class="glass card" style="margin-top:12px"><div class="line"><span>${s.hours} hour${s.hours > 1 ? 's' : ''} × ${rs(S.info.rate)}</span><b>${rs(S.info.rate * s.hours)}</b></div>
+     ${extra ? `<div class="line"><span>${extra} extra player${extra > 1 ? 's' : ''} × ${rs(S.info.extra)} × ${s.hours}h</span><b>${rs(S.info.extra * extra * s.hours)}</b></div>` : ''}
+     <div class="line"><span>Total</span><b>${rs(price())}</b></div></div>`;
+  }
+  if (st === 5) {
+    const acct = S.info.account_no ? `<div class="acct">${S.info.account_bank ? esc(S.info.account_bank) + '<br>' : ''}Account title: <b>${esc(S.info.account_title)}</b><br>Account number: <b>${esc(S.info.account_no)}</b></div>`
+                                   : `<div class="acct tiny">Payment account details will appear here. (Not set yet.)</div>`;
+    body = `<h2>Pay and lock your slot</h2>
+     <div class="field"><label for="f-name">Your name</label><input id="f-name" placeholder="Full name" autocomplete="name" value="${esc(s.name)}"></div>
+     <div class="field"><label for="f-phone">WhatsApp number</label><input id="f-phone" inputmode="tel" placeholder="03XXXXXXXXX" autocomplete="tel" value="${esc(s.phone)}"></div>
+     <div class="lab">How much now?</div>
+     <div class="opts two" style="margin-top:0"><button class="opt glass ${!s.full ? 'sel' : ''}" data-a="full" data-v="0"><div class="t">${S.info.advance_pct}% advance</div><div class="s">${rs(Math.ceil(price() * S.info.advance_pct / 100))} now, rest at the counter</div></button>
+     <button class="opt glass ${s.full ? 'sel' : ''}" data-a="full" data-v="1"><div class="t">Full</div><div class="s">${rs(price())} now. Seat held even if you are late</div></button></div>
+     <div class="glass card" style="margin-top:12px"><div class="tiny">Send exactly</div><div class="amount">${rs(due())}</div>${acct}</div>
+     <label class="up ${s.file ? 'has' : ''}"><input type="file" accept="image/png,image/jpeg,image/webp" id="f-proof" hidden>
+      ${s.file ? `${s.preview ? `<img src="${s.preview}" alt="">` : ''}<b>Screenshot added ✓</b><div class="tiny">Tap to change</div>` : `<b>Upload payment screenshot</b><div class="tiny">Tap here and choose the screenshot</div>`}</label>
+     ${S.err ? `<div class="err">${esc(S.err)}</div>` : ''}
+     <div class="rules"><div>Pay at least ${S.info.advance_pct}% to book. The rest is paid at the counter.</div><div>Your time starts at the booked time. 30 minutes late without full payment, the seat may go to someone else.</div><div>To cancel, tell us at least 12 hours before.</div></div>`;
+  }
+  const parts = [s.m, s.game, s.start != null ? whenText(s.start, s.start + s.hours * H) : null, st >= 4 ? s.players + ' player' + (s.players > 1 ? 's' : '') : null].filter(Boolean);
+  const can = st === 1 ? !!s.m : st === 2 ? !!s.game : st === 3 ? s.start != null : st === 4 ? true : ready();
+  return `<div class="wrap">${head()}<div class="prog">${STEPS.map((_, i) => `<i class="${i < st ? 'on' : ''}"></i>`).join('')}</div>
+   <div class="tag" style="margin-bottom:8px">Step ${st} of 5 · ${STEPS[st - 1]}</div>${body}</div>
+   <div class="bar"><div class="bar-in"><div class="slot"><div class="d"><b>Your slot</b> · ${parts.length ? esc(parts.join(' · ')) : 'nothing picked yet'}</div>${s.start != null ? `<div class="p">${rs(price())}</div>` : ''}</div>
+   <div class="row"><button class="btn back" data-a="back" aria-label="Back">←</button><button class="btn" id="go" data-a="next" ${can ? '' : 'disabled'}>${st === 5 ? 'Lock my slot' : 'Continue'}</button></div></div></div>`;
+}
+const stLabel = { pending:'Verifying payment', confirmed:'Confirmed', declined:'Not confirmed', cancelled:'Cancelled', released:'Seat released', completed:'Completed' };
+function receipt(){
+  const b = S.receipt; if (!b) return home();
+  const head2 = b.state === 'confirmed' ? ['Slot confirmed.', 'See you ' + whenText(b.start_time, b.end_time).split(' – ')[0] + '.']
+              : b.state === 'declined'  ? ['Payment not confirmed', 'Reason: ' + (b.decline_reason || 'payment not received') + '. Message us on WhatsApp and we will sort it out.']
+              : b.state === 'pending'   ? ['Slot built.', 'Your slot is locked. We are checking your payment and will confirm shortly.']
+              : [stLabel[b.state] || 'Booking', ''];
+  return `<div class="wrap">${head()}<div class="hero" style="padding-bottom:6px"><h2>${esc(head2[0])}</h2><p class="sub">${esc(head2[1])}</p></div>
+   <div class="glass card"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:12px;border-bottom:1px dashed var(--border-strong)">
+     <div><div class="tag">Booking</div><div class="mono" style="font-size:20px;font-weight:700">#${esc(b.booking_no)}</div></div><span class="st ${esc(b.state)}">${esc(stLabel[b.state] || b.state)}</span></div>
+    <div class="line"><span>Machine</span><b>${esc(b.machine_id)}</b></div><div class="line"><span>Game</span><b>${esc(b.game)}</b></div>
+    <div class="line"><span>When</span><b>${esc(whenText(b.start_time, b.end_time))}</b></div><div class="line"><span>Players</span><b>${esc(b.players)}</b></div>
+    <div class="line"><span>Total</span><b>${rs(b.total)}</b></div>
+    <div class="line"><span>${b.state === 'pending' ? 'Sent (being checked)' : 'Paid'}</span><b>${rs(b.state === 'pending' ? (b.claimed || 0) : b.paid)}</b></div>
+    <div class="line"><span>Pay at counter</span><b>${rs(Math.max(0, b.total - (b.state === 'pending' ? (b.claimed || 0) : b.paid)))}</b></div></div>
+   <div class="rules"><div>Your time starts at ${hl(b.start_time)}, even if you arrive late.</div><div>To cancel, tell us at least 12 hours before.</div><div>Keep your booking number. You will need it with your phone number.</div></div>
+   <a class="btn ghost" style="margin-top:18px;text-decoration:none" href="https://wa.me/${CONFIG.WHATSAPP}?text=${encodeURIComponent('Booking #' + b.booking_no)}" target="_blank" rel="noopener">Message 404 on WhatsApp</a>
+   <button class="btn" style="margin-top:10px" data-a="start">Build another slot</button>
+   <p class="foot">Sami Town, Azizpull, Taj Bagh Scheme, Lahore · 0324 4099700</p></div>`;
+}
+
+/* The receipt is remembered on this phone only, so the customer can come back to it. */
+function lastBooking(){ try { return JSON.parse(localStorage.getItem('g404_booking') || 'null'); } catch(e){ return null; } }
+function rememberBooking(no, phone, claimed){ try { localStorage.setItem('g404_booking', JSON.stringify({ no, phone, claimed })); } catch(e){} }
+async function refreshReceipt(){
+  const saved = lastBooking(); if (!saved) return;
+  const { data } = await sb.rpc('gz_booking_status', { p_booking_no: saved.no, p_phone: saved.phone });
+  if (data) { const was = S.receipt && S.receipt.state; S.receipt = Object.assign({ claimed: saved.claimed }, data);
+    if (S.view === 'receipt' && was !== data.state) render(); }
+}
+setInterval(() => { if (S.view === 'receipt' && S.receipt && S.receipt.state === 'pending') refreshReceipt(); }, 15000);
+
+function keep(){ const n = document.getElementById('f-name'), p = document.getElementById('f-phone'); if (n) { S.sel.name = n.value; S.sel.phone = p.value; } }
+document.addEventListener('input', e => { if (e.target.id === 'f-name' || e.target.id === 'f-phone') { keep(); const go = document.getElementById('go'); if (go) go.disabled = !ready(); } });
+document.addEventListener('change', e => {
+  if (e.target.id !== 'f-proof' || !e.target.files[0]) return;
+  keep(); const f = e.target.files[0];
+  if (f.size > 5 * 1024 * 1024) { S.err = 'That image is larger than 5 MB. Please send a smaller screenshot.'; render(); return; }
+  S.err = ''; S.sel.file = f; const r = new FileReader(); r.onload = () => { S.sel.preview = r.result; render(); }; r.readAsDataURL(f);
+});
+async function submit(){
+  const s = S.sel; S.err = ''; S.busy = 'Locking your slot'; render();
+  try {
+    const ext = (s.file.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+    const path = new Date().toISOString().slice(0, 10) + '/' + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2)) + '.' + ext;
+    const up = await sb.storage.from('payment-proofs').upload(path, s.file, { contentType: s.file.type, upsert: false });
+    if (up.error) throw new Error('The screenshot could not be uploaded. Please try again.');
+    const phone = s.phone.replace(/[\s-]/g, '');
+    const { data, error } = await sb.rpc('gz_create_booking', { p_machine: s.m, p_game: s.game, p_start: s.start, p_hours: s.hours, p_players: s.players,
+      p_name: s.name.trim(), p_phone: phone, p_amount: due(), p_proof_path: path, p_txn: null });
+    if (error) throw new Error(error.message);
+    rememberBooking(data.booking_no, phone, due());
+    S.receipt = { booking_no: data.booking_no, machine_id: s.m, game: s.game, start_time: s.start, end_time: s.start + s.hours * H, players: s.players,
+                  total: data.total, paid: 0, claimed: due(), state: 'pending' };
+    S.sel = fresh(); S.step = 1; S.view = 'receipt';
+  } catch (e) {
+    S.err = e.message || 'Something went wrong. Please try again.';
+    if (/just taken/.test(S.err)) { S.step = 3; S.sel.start = null; await loadTaken(); }
+  }
+  S.busy = false; render(); window.scrollTo(0, 0);
+}
+document.addEventListener('click', async e => {
+  const el = e.target.closest('[data-a]'); if (!el) return;
+  const a = el.dataset.a, v = el.dataset.v, s = S.sel; keep();
+  const y = window.scrollY, stay = ['day','hrs','time','pl','full'].includes(a);
+  if (a === 'start') { S.sel = fresh(); S.step = 1; S.view = 'build'; S.err = ''; }
+  else if (a === 'mine') { S.busy = 'Finding your booking'; render(); await refreshReceipt(); S.busy = false; S.view = S.receipt ? 'receipt' : 'home'; }
+  else if (a === 'back') { if (S.step === 1) S.view = 'home'; else S.step--; }
+  else if (a === 'm') { if (s.m !== v) { s.game = null; s.start = null; } s.m = v; S.step = 2; }
+  else if (a === 'game') { s.game = v; S.step = 3; await loadTaken(); }
+  else if (a === 'day') { s.day = +v; s.start = null; render(); await loadTaken(); }
+  else if (a === 'hrs') { s.hours = Math.max(1, Math.min(6, s.hours + +v)); s.start = null; }
+  else if (a === 'time') { s.start = +v; }
+  else if (a === 'pl') { s.players = Math.max(1, Math.min(4, s.players + +v)); }
+  else if (a === 'full') { s.full = v === '1'; }
+  else if (a === 'next') { if (S.step < 5) S.step++; else if (ready()) { await submit(); return; } }
+  render(); window.scrollTo(0, stay ? y : 0);
+});
+
+(async () => {
+  try { await loadBase(); render(); }
+  catch (e) { app.innerHTML = `<div class="wrap">${head()}<div class="err">We could not load the booking page. Please check your internet and try again.</div></div>`; }
+})();
+</script>
+</body>
+</html>

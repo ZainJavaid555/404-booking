@@ -8214,11 +8214,12 @@ function askPayment(title, amountText, breakdown, total){
         <div class="paysheet-title">${escapeHtml(title)}</div>
         <div class="paysheet-amount">${amountText || ''}</div>
         ${breakdown ? `<div class="paysheet-break">${escapeHtml(breakdown)}</div>` : ''}
-        <div class="paysheet-q">How was it paid?</div>
+        ${due > 0 ? `<div class="paysheet-q">How was it paid?</div>
         <div class="paysheet-row">
           <button class="paysheet-btn cash" data-pay="cash"><span>&#128181;</span>Cash</button>
           <button class="paysheet-btn online" data-pay="online"><span>&#128241;</span>Online</button>
-        </div>
+        </div>` : `<div class="paysheet-q">Nothing to collect</div>
+        <button class="paysheet-btn online" data-pay="${/advance/i.test(breakdown || '') ? 'online' : 'cash'}" style="width:100%"><span>&#10003;</span>End session</button>`}
         ${due > 0 ? `<button class="paysheet-btn split" data-pay="split"><span>&#8646;</span>Some cash, some online</button>` : ''}
         <div class="paysplit-box" id="paySplitBox" hidden>
           <div class="paysplit-row">

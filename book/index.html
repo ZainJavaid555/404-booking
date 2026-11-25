@@ -85,6 +85,7 @@ h2{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;letter-spacing:-.
 .field{margin-top:12px}
 .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
 .field input{width:100%;height:54px;border-radius:14px;border:1.5px solid var(--border-strong);padding:0 16px;background:var(--surface-3);outline:none;font-size:16px}
+.prow{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:420px){.prow{grid-template-columns:1fr}}
 .field input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(8,145,178,.15)}
 .line{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--border);font-size:14.5px}
 .line:last-child{border-bottom:0}.line span{color:var(--text-dim)}.line b{text-align:right}
@@ -168,7 +169,7 @@ const whenText = (start, end) => { const p = pk(start); const late = p.getUTCHou
 
 const S = { view:'home', step:1, machines:[], info:{rate:400,extra:100,advance_pct:50}, taken:[], busy:false, err:'',
             sel:null, receipt:null, mine:[], find:{ no:'', phone:'', err:'' }, fromGrid:false, gfilter:null };
-const fresh = () => ({ m:null, game:null, day:0, start:null, hours:1, players:2, name:'', phone:'', full:false, file:null, preview:null });
+const fresh = () => ({ m:null, game:null, day:0, start:null, hours:1, players:2, others:[{name:'',phone:''}], name:'', phone:'', full:false, file:null, preview:null });
 S.sel = fresh();
 const price = () => S.sel.hours * (S.info.rate + Math.max(0, S.sel.players - 2) * S.info.extra);
 const due   = () => S.sel.full ? price() : Math.ceil(price() * S.info.advance_pct / 100);
@@ -266,7 +267,12 @@ function builder(){
      <div class="stepper glass" style="margin-top:16px"><button class="rb" data-a="pl" data-v="-1" ${s.players <= 1 ? 'disabled' : ''}>−</button><div class="v">${s.players} player${s.players > 1 ? 's' : ''}</div><button class="rb" data-a="pl" data-v="1" ${s.players >= 8 ? 'disabled' : ''}>+</button></div>
      <div class="glass card" style="margin-top:12px"><div class="line"><span>${s.hours} hour${s.hours > 1 ? 's' : ''} × ${rs(S.info.rate)}</span><b>${rs(S.info.rate * s.hours)}</b></div>
      ${extra ? `<div class="line"><span>${extra} extra player${extra > 1 ? 's' : ''} × ${rs(S.info.extra)} × ${s.hours}h</span><b>${rs(S.info.extra * extra * s.hours)}</b></div>` : ''}
-     <div class="line"><span>Total</span><b>${rs(price())}</b></div></div>`;
+     <div class="line"><span>Total</span><b>${rs(price())}</b></div></div>
+     <h3 style="margin-top:22px;font-size:18px">Who is playing?</h3><span class="ur">Har player ka naam likhein. Mobile number zaroori nahi.</span>
+     <div class="glass card" style="margin-top:10px">
+      <div class="field" style="margin-top:0"><label for="p1-name">Player 1 (you)</label><input id="p1-name" placeholder="Your full name" autocomplete="name" maxlength="60" value="${esc(s.name)}"></div>
+      ${others().map((o, i) => `<div class="field"><label>Player ${i + 2}</label><div class="prow"><input data-pi="${i}" data-pk="name" placeholder="Name" maxlength="60" value="${esc(o.name)}"><input data-pi="${i}" data-pk="phone" inputmode="numeric" placeholder="Mobile (optional)" maxlength="13" value="${esc(o.phone)}"></div></div>`).join('')}
+     </div>`;
   }
   if (st === 5) {
     const acct = S.info.account_no ? `<div class="acct">${S.info.account_bank ? esc(S.info.account_bank) + '<br>' : ''}Account title: <b>${esc(S.info.account_title)}</b><br>Account number: <b>${esc(S.info.account_no)}</b></div>`
@@ -284,7 +290,7 @@ function builder(){
      <div class="rules"><div>Pay at least ${S.info.advance_pct}% to book. The rest is paid at the counter.</div><div>Your time starts at the booked time. 30 minutes late without full payment, the seat may go to someone else.</div><div>To cancel, tell us at least 12 hours before.</div></div>`;
   }
   const parts = [s.m, s.game, s.start != null ? whenText(s.start, s.start + s.hours * H) : null, st >= 4 ? s.players + ' player' + (s.players > 1 ? 's' : '') : null].filter(Boolean);
-  const can = st === 2 ? !!s.game : st === 3 ? (s.start != null && !isTaken(s.m, s.start, s.start + s.hours * H)) : st === 4 ? true : ready();
+  const can = st === 2 ? !!s.game : st === 3 ? (s.start != null && !isTaken(s.m, s.start, s.start + s.hours * H)) : st === 4 ? namesOk() : ready();
   return `<div class="wrap">${head()}<div class="prog">${STEPS.map((_, i) => `<i class="${i < st ? 'on' : ''}"></i>`).join('')}</div>
    <div class="tag" style="margin-bottom:8px">Step ${st} of 5 · ${STEPS[st - 1]}</div>${body.replace('</h2>', '</h2><span class="ur">' + UR[st - 1] + '</span>')}</div>
    <div class="bar"><div class="bar-in"><div class="slot"><div class="d"><b>Your slot</b> · ${parts.length ? esc(parts.join(' · ')) : 'nothing picked yet'}</div>${s.start != null ? `<div class="p">${rs(price())}</div>` : ''}</div>
@@ -367,6 +373,18 @@ setInterval(async () => {
   if (!typing && before !== JSON.stringify((S.mine || []).map(b => b.state)) + (S.receipt ? S.receipt.state : '')) render();
 }, 15000);
 
+/* The other players: always exactly (players - 1) rows. Names are needed, mobile is optional. */
+function others(){ const s = S.sel; s.others = s.others || []; while (s.others.length < s.players - 1) s.others.push({ name:'', phone:'' }); s.others.length = Math.max(0, s.players - 1); return s.others; }
+const cleanPhone = v => (v || '').replace(/[\s-]/g, '');
+function namesOk(){ const s = S.sel; return s.name.trim().length >= 2 && others().every(o => o.name.trim().length >= 2 && (!cleanPhone(o.phone) || /^03\d{9}$/.test(cleanPhone(o.phone)))); }
+document.addEventListener('input', e => {
+  const t = e.target, s = S.sel;
+  if (t.id === 'p1-name') s.name = t.value;
+  else if (t.dataset && t.dataset.pi != null) { const o = others()[+t.dataset.pi]; if (o) o[t.dataset.pk] = t.value;
+    if (t.dataset.pk === 'phone') t.style.borderColor = (!cleanPhone(t.value) || /^03\d{9}$/.test(cleanPhone(t.value))) ? '' : 'var(--danger)'; }
+  else return;
+  const go = document.getElementById('go'); if (go) go.disabled = !namesOk();
+});
 function keep(){ const n = document.getElementById('f-name'), p = document.getElementById('f-phone'); if (n) { S.sel.name = n.value; S.sel.phone = p.value; }
   const q = document.getElementById('q-no'), qp = document.getElementById('q-phone'); if (q) { S.find.no = q.value; S.find.phone = qp.value; } }
 document.addEventListener('input', e => { if (e.target.id === 'f-name' || e.target.id === 'f-phone') { keep(); const go = document.getElementById('go'); if (go) go.disabled = !ready(); } });
@@ -384,8 +402,9 @@ async function submit(){
     const up = await sb.storage.from('payment-proofs').upload(path, s.file, { contentType: s.file.type, upsert: false });
     if (up.error) throw new Error('The screenshot could not be uploaded. Please try again.');
     const phone = s.phone.replace(/[\s-]/g, '');
-    const { data, error } = await sb.rpc('gz_create_booking', { p_machine: s.m, p_game: s.game, p_start: s.start, p_hours: s.hours, p_players: s.players,
-      p_name: s.name.trim(), p_phone: phone, p_amount: due(), p_proof_path: path, p_txn: null });
+    const { data, error } = await sb.rpc('gz_create_booking_v2', { p_machine: s.m, p_game: s.game, p_start: s.start, p_hours: s.hours, p_players: s.players,
+      p_name: s.name.trim(), p_phone: phone, p_amount: due(), p_proof_path: path,
+      p_player_list: others().map(o => ({ name: o.name.trim(), phone: cleanPhone(o.phone) })) });
     if (error) throw new Error(error.message);
     rememberBooking(data.booking_no, phone, due());
     S.receipt = { booking_no: data.booking_no, machine_id: s.m, game: s.game, start_time: s.start, end_time: s.start + s.hours * H, players: s.players,

@@ -1502,7 +1502,7 @@ function viewSell(){
       <button class="tabback" id="tabBack">\u2039</button>
       <div class="tabwho">
         <b>${esc(tabFor.label)}</b>
-        <i>${esc(tabFor.platform)} \u00b7 goes on their tab, paid when the session ends</i>
+        <i>${esc(tabFor.platform)} \u00b7 added to their session, paid now</i>
       </div>
     </div>` : "";
 
@@ -2394,10 +2394,16 @@ async function checkout(){
 
     // A session tab is not paid now: it is settled with the gaming bill when
     // the session ends. A walk-in at the counter pays straight away.
-    let pay = null;
+    // PAY FIRST: snacks for a session are also paid for now, before they are
+    // handed over. The money is written against the session, so the gaming
+    // screen shows it as already paid and asks for nothing at the end.
+    let pay = null, tabPay = null;
     if(!tabFor){
       pay = await askPayment(money(total), total);
       if(!pay){ checkingOut = false; return; }
+    } else {
+      tabPay = await askPayment(money(total), total);
+      if(!tabPay){ checkingOut = false; return; }
     }
 
     const sale = {
@@ -2459,7 +2465,7 @@ async function checkout(){
     render();
     Sound.sale();
     toast(tabFor
-      ? "Added to " + tabFor.label + "\u2019s tab \u00B7 " + money(total)
+      ? "Paid and added to " + tabFor.label + "\u2019s session \u00B7 " + money(total)
       : lateWhen
         ? "Late entry saved \u00B7 " + money(total) + " \u00B7 filed under "
           + lateWhen.toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})
@@ -2469,7 +2475,14 @@ async function checkout(){
       gzTabs[tabFor.id] = { items: t.items + lines.length, amount: t.amount + Math.round(total) };
     }
 
-    if(tabFor) await push("tabAdd", { session: tabFor.id, lines, staff: currentUser() });
+    if(tabFor){
+      await push("tabAdd", { session: tabFor.id, lines, staff: currentUser() });
+      try{
+        const r = await sb.from("gz_session_payments").insert({ session_id: tabFor.id, kind: "snacks",
+          cash: Math.round(tabPay.cash || 0), online: Math.round(tabPay.online || 0), staff: currentUser() });
+        if(r.error) throw r.error;
+      }catch(e){ toast("Payment not saved against the session. It will be asked for again when the session ends.", true); }
+    }
     else       await push("sale", sale);
     for(const l of lines) await pushStock(l.id, -l.qty);          // #8 delta, not absolute
   } finally {

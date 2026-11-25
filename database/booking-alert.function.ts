@@ -56,12 +56,17 @@ Deno.serve(async (req) => {
       const { data: rows } = await db.from("gz_bookings")
         .update({ alerted_at: new Date().toISOString() })
         .is("alerted_at", null).eq("state", "pending")
-        .select("id,booking_no,customer_name,machine_id,start_time,paid");
+        .select("id,booking_no,customer_name,machine_id,start_time,total");
       if (!rows || !rows.length) return json({ bookings: 0, sent: 0 });
       ({ data: subs } = await db.from("gz_push_subs").select("*"));
+      // What the customer says they sent is in the payment rows, not on the booking.
+      const { data: pays } = await db.from("gz_booking_payments").select("booking_id,amount")
+        .in("booking_id", rows.map((r: any) => r.id)).eq("status", "pending");
+      const sentFor = (id: string) => (pays || []).filter((p: any) => p.booking_id === id).reduce((n: number, p: any) => n + Number(p.amount), 0);
+      const rs = (n: number) => "Rs " + Number(n).toLocaleString("en-PK");
       notes = rows.map((r: any) => ({
         title: `New booking #${r.booking_no} to check`,
-        body: `${r.customer_name} · ${r.machine_id} · ${pkTime(r.start_time)} · says paid Rs ${Number(r.paid).toLocaleString("en-PK")}`,
+        body: `${r.customer_name} · ${r.machine_id} · ${pkTime(r.start_time)} · says sent ${rs(sentFor(r.id))} of ${rs(r.total)}`,
         tag: "bk-" + r.id,
       }));
     }

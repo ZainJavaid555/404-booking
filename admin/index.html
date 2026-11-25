@@ -3557,6 +3557,10 @@
 <div class="machine-grid" id="machineChoice"></div>
 <div class="machine-hint" id="machineHint"></div>
 </div>
+<div class="field" data-only="live" id="hoursField">
+<label class="label">Hours</label>
+<div class="machine-grid" id="hoursChoice"></div>
+</div>
 <div class="field" style="position: relative">
 <label class="label">Game <span class="optional-tag" id="gameReq">— optional</span></label>
 <input autocomplete="off" class="input" id="gameInput" placeholder="e.g. FIFA 24, GTA V, Call of Duty..." type="text">
@@ -5468,7 +5472,7 @@ function updateCustomTimeHint() {
   }
   const now = Date.now();
   const elapsedMin = Math.round((now - ts) / 60000);
-  const totalMin = state.settings.totalMin + (state.settings.loadMin ?? 0);
+  const totalMin = state.settings.totalMin * (sessionHours || 1) + (state.settings.loadMin ?? 0);
   const remainingMin = totalMin - elapsedMin;
 
   if (elapsedMin < 0) {
@@ -5561,8 +5565,10 @@ function updateLivePriceCard() {
     if (ts) start = new Date(ts);
   }
   const bd = pricingBreakdown(sessionPlatform, count, start);
-  totalEl.textContent = formatMoney(bd.rate);
-  metaEl.textContent = `${PLATFORM_LABEL[sessionPlatform] || sessionPlatform.toUpperCase()} · ${bd.label} · ${count} player${count===1?'':'s'} · ${formatMoney(bd.rate)}/hr`;
+  const hrsNow = (typeof sessionHours === 'number' && sessionHours > 0) ? sessionHours : 1;
+  totalEl.textContent = formatMoney(segmentsTotal(segmentsFor(sessionPlatform, count, start.getTime(), hrsNow)));
+  metaEl.textContent = `${PLATFORM_LABEL[sessionPlatform] || sessionPlatform.toUpperCase()} · ${bd.label} · ${count} player${count===1?'':'s'} · ${formatMoney(bd.rate)}/hr` + (hrsNow > 1 ? ` × ${hrsNow} hr` : '');
+  if (typeof renderHoursChoice === 'function') renderHoursChoice();
 }
 
 function updateEntryPreview() {
@@ -5946,14 +5952,14 @@ function startSession() {
     const inUse = machineSession(sessionMachine);
     if (inUse) { alert(sessionMachine + ' is already in use by ' + (inUse.players[0]?.name || 'another session') + '. End that session first.'); renderMachineChoice(); return; }
     const nb = machineNextBooking(sessionMachine);
-    if (nb && nb.start_time < plannedStart() + state.settings.totalMin * 60 * 1000) {
-      alert(sessionMachine + ' is booked at ' + fmtClock(nb.start_time) + ' by ' + nb.customer_name + '. There is not enough time for a session before that. Pick another machine.');
+    if (nb && nb.start_time < plannedStart() + sessionLenMs()) {
+      alert(sessionMachine + ' is booked at ' + fmtClock(nb.start_time) + ' by ' + nb.customer_name + '. There is not enough time for ' + sessionHours + ' hour' + (sessionHours === 1 ? '' : 's') + ' before that. Pick fewer hours or another machine.');
       renderMachineChoice(); return;
     }
   }
   // A session is a solid 60 minutes. No loading bonus on top.
   const loadMs = 0;
-  const totalMs = state.settings.totalMin * 60 * 1000;
+  const totalMs = sessionLenMs();
 
   // Resolve start time — custom (backdated) or "now"
   let startTime = now;
@@ -5962,7 +5968,7 @@ function startSession() {
     if (!customTs) { alert('Pick a valid start time.'); return; }
     if (customTs > now + 60 * 1000) { alert('Start time cannot be in the future.'); return; }
     if (now - customTs >= totalMs) {
-      alert(`That start time is too far in the past — the session would already be over (total is ${state.settings.totalMin} min).`);
+      alert(`That start time is too far in the past — the session would already be over (total is ${Math.round(totalMs / 60000)} min).`);
       return;
     }
     startTime = customTs;
@@ -6010,20 +6016,16 @@ function startSession() {
     endTime: startTime + totalMs,
     totalMs,
     loadMs,  // always 0 now; kept so older records still render
-    paidHours: 1,
+    paidHours: sessionHours,
     hourlyRate: rateFor(sessionPlatform, collected.length, new Date(startTime)),
-    priceSegments: [{
-      startTime,
-      rate: rateFor(sessionPlatform, collected.length, new Date(startTime)),
-      hours: 1,
-    }],
+    priceSegments: segmentsFor(sessionPlatform, collected.length, startTime, sessionHours),
   };
   state.sessions.push(session);
   persistNow();
 
   // Reset form
-  sessionMachine = null; renderMachineChoice();
-  rebuildPlayerRows();
+  sessionMachine = null; sessionHours = 1; renderMachineChoice();
+  rebuildPlayerRows(); renderHoursChoice();
   gameInputEl.value = '';
   resetCustomStartUI();
 
@@ -6045,6 +6047,19 @@ const link = { machines: [], bookings: [], ready: false };
 const fmtClock = ts => formatTime(ts);
 function machineSession(id){ return state.sessions.find(x => x.machineId === id) || null; }
 /* The next booking that still needs this machine: locked, not yet started. */
+/* How many hours the new session is started with (staff can still add time later). */
+var sessionHours = 1;   /* var on purpose: read by code that runs earlier in the file */
+function sessionLenMs(){ return (sessionHours || 1) * (state.settings.totalMin || 60) * 60 * 1000; }
+function renderHoursChoice(){
+  const grid = document.getElementById('hoursChoice'); if (!grid) return;
+  const count = Math.max(1, document.getElementById('playersList')?.children?.length || 1);
+  grid.innerHTML = [1,2,3,4,5,6].map(h => `<button type="button" class="machine-btn ${sessionHours === h ? 'selected' : ''}" data-hours="${h}"><b>${h} hr</b><small>${formatMoney(segmentsTotal(segmentsFor(sessionPlatform, count, plannedStart(), h)))}</small></button>`).join('');
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('#hoursChoice .machine-btn'); if (!b) return;
+  sessionHours = parseInt(b.dataset.hours) || 1;
+  renderHoursChoice(); renderMachineChoice(); updateLivePriceCard(); if (customStartToggle.checked) updateCustomTimeHint();
+});
 /* When the new session will start: the backdated time if one is set, else now. */
 function plannedStart(){
   const now = Date.now();
@@ -6076,7 +6091,7 @@ function renderMachineChoice(){
   const list = link.machines.filter(m => m.platform === sessionPlatform);
   field.hidden = !link.ready || !list.length;
   if (field.hidden) { sessionMachine = null; return; }
-  const now = Date.now(), need = (state.settings.totalMin || 60) * 60 * 1000;
+  const now = Date.now(), need = sessionLenMs();
   if (sessionMachine && !list.some(m => m.id === sessionMachine)) sessionMachine = null;
   grid.innerHTML = list.map(m => {
     const busy = machineSession(m.id); let nb = machineNextBooking(m.id);

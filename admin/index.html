@@ -1417,6 +1417,10 @@
   .up-pill.wait { background: #fef3c7; color: #92400e; }
   .up-note { margin-top: 10px; font-size: 13.5px; font-weight: 600; border-radius: 10px; padding: 9px 11px; background: rgba(15,23,42,.05); position: relative; z-index: 1; }
   .up-note.warn { background: #fef3c7; color: #92400e; }
+  .session-paid { margin-top: 8px; font-size: 13px; font-weight: 700; border-radius: 10px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; position: relative; z-index: 1; }
+  .session-paid.ok { background: #d1fae5; color: #065f46; }
+  .session-paid.owes { background: #fee2e2; color: #991b1b; }
+  .session-paid .btn { padding: 6px 12px; font-size: 12.5px; }
   .session-advance { margin-top: 8px; font-size: 12.5px; color: var(--accent-strong); background: rgba(8,145,178,.08); border-radius: 10px; padding: 7px 10px; position: relative; z-index: 1; }
   /* The zone no longer has PCs. Old PC records still display. */
   #platformChoice .radio-option[data-value="pc"], .radio-option[data-value="pc"] { display: none; }
@@ -5931,9 +5935,9 @@ function sessionRateSummary(s) {
 }
 
 // ============ Start session ============
-document.getElementById('startBtn').addEventListener('click', startSession);
+document.getElementById('startBtn').addEventListener('click', async () => { const b = document.getElementById('startBtn'); if (b.dataset.busy) return; b.dataset.busy = '1'; try { await startSession(); } finally { delete b.dataset.busy; } });
 
-function startSession() {
+async function startSession() {
   const rows = [...playersList.children];
   const collected = [];
   let firstError = null;
@@ -5987,6 +5991,12 @@ function startSession() {
     startTime = customTs;
   }
 
+  // PAY FIRST: the session does not exist until the money is in hand.
+  const newSessionId = 'sess_' + Math.random().toString(36).slice(2, 10);
+  const startPrice = segmentsTotal(segmentsFor(sessionPlatform, collected.length, startTime, sessionHours));
+  if (!(await collectFirst(newSessionId, startPrice, 'start', 'New session \u2014 ' + (collected[0]?.name || ''),
+        sessionHours + ' hour' + (sessionHours === 1 ? '' : 's') + ' \u00b7 ' + collected.length + ' player' + (collected.length === 1 ? '' : 's') + ' \u00b7 take the money before the session starts'))) return;
+
   // Determine which players are new vs returning BEFORE saving
   const newPlayers = [];
   collected.forEach(p => {
@@ -6019,7 +6029,7 @@ function startSession() {
   }
 
   const session = {
-    id: 'sess_' + Math.random().toString(36).slice(2, 10),
+    id: newSessionId,
     type: sessionType,
     platform: sessionPlatform,
     machineId: (machineField && !machineField.hidden) ? sessionMachine : null,
@@ -6169,6 +6179,63 @@ document.addEventListener('click', e => {
   if (!b || b.disabled) return;
   sessionMachine = b.dataset.machine; renderMachineChoice();
 });
+/* ------------------------------------------------------------------
+   PAY FIRST. Money is taken before the time is given: at the start of a
+   session, and again for every added hour, added player or snack.
+   Each payment is one line in gz_session_payments, so nothing is carried
+   in anyone's head until the end. A refund is a minus line; the database
+   only accepts those from an owner.
+   ------------------------------------------------------------------ */
+const payLedger = {};                       // session id -> { cash, online } taken at the counter so far
+function paidAtCounter(s){ return payLedger[s && s.id] || { cash:0, online:0 }; }
+function sessionPaidTotal(s){ const p = paidAtCounter(s); return Math.max(0, Math.round(Number(s.advance) || 0)) + p.cash + p.online; }
+async function loadPayLedger(){
+  if (!sb || !sbUser) return;
+  const ids = state.sessions.map(x => x.id);
+  if (!ids.length) { Object.keys(payLedger).forEach(k => delete payLedger[k]); return; }
+  try {
+    const r = await sb.from('gz_session_payments').select('session_id,cash,online').in('session_id', ids);
+    if (r.error) throw r.error;
+    Object.keys(payLedger).forEach(k => delete payLedger[k]);
+    (r.data || []).forEach(x => { const p = payLedger[x.session_id] || (payLedger[x.session_id] = { cash:0, online:0 }); p.cash += Number(x.cash) || 0; p.online += Number(x.online) || 0; });
+    state.sessions.forEach(x => { const c = sessionsGrid.querySelector(`.session-card[data-id="${x.id}"]`); if (c) refreshSessionCard(c, x); });
+  } catch (e) { console.warn('payments not loaded', e); }
+}
+async function recordPay(sessionId, kind, cash, online){
+  if (!sb || !sbUser) { alert('Not signed in, so the payment cannot be recorded. Sign in and try again.'); return false; }
+  const row = { session_id: sessionId, kind, cash: Math.round(cash) || 0, online: Math.round(online) || 0, staff: currentUserLabel() };
+  const r = await sb.from('gz_session_payments').insert(row);
+  if (r.error) { alert('The payment could not be recorded (' + r.error.message + '). Check the internet and try again. Nothing has been changed.'); return false; }
+  const p = payLedger[sessionId] || (payLedger[sessionId] = { cash:0, online:0 });
+  p.cash += row.cash; p.online += row.online;
+  return true;
+}
+/* Ask for the money, record it, and only then say yes. False = do not go ahead. */
+async function collectFirst(sessionId, amount, kind, title, note){
+  amount = Math.round(Number(amount) || 0);
+  if (amount <= 0) return true;
+  const pay = await askPayment(title, formatMoney(amount), note || 'Take the money first.', amount);
+  if (!pay) return false;
+  return recordPay(sessionId, kind, pay.cash, pay.online);
+}
+/* Money going back to the customer. Owners only. */
+async function refundFirst(s, amount, title){
+  amount = Math.round(Number(amount) || 0);
+  if (amount <= 0) return true;
+  if (!isOwner()) { alert('This has already been paid for, so taking it off means a refund of ' + formatMoney(amount) + '. Only an owner can do that.'); return false; }
+  const pay = await askPayment(title, formatMoney(amount) + ' to give back', 'Refund to the customer', amount, 'How was it given back?');
+  if (!pay) return false;
+  return recordPay(s.id, 'refund', -pay.cash, -pay.online);
+}
+(function payBoot(){
+  const t = setInterval(async () => {
+    if (typeof sb === 'undefined' || !sb || !sbUser) return;
+    clearInterval(t);
+    await loadPayLedger();
+    try { sb.channel('gz-pay').on('postgres_changes', { event:'*', schema:'public', table:'gz_session_payments' }, loadPayLedger).subscribe(); } catch (e) {}
+    setInterval(loadPayLedger, 20000);
+  }, 1200);
+})();
 (function linkBoot(){
   const t = setInterval(async () => {
     if (typeof sb === 'undefined' || !sb || !sbUser) return;
@@ -6301,6 +6368,7 @@ function buildSessionCard(s) {
       <div class="price-value" data-r="price-total"></div>
     </div>
     ${Number(s.advance) > 0 ? `<div class="session-advance">Booked online \u00b7 advance ${formatMoney(s.advance)} already paid</div>` : ''}
+    <div class="session-paid" data-r="paid"></div>
     <div class="progress"><div class="progress-fill" data-r="progress" style="width: 0%"></div></div>
     <div class="session-actions">
       <div class="add-time-wrap" data-r="addwrap">
@@ -6371,12 +6439,20 @@ function buildSessionCard(s) {
 
   apBtn.addEventListener('click', () => { apBtns.hidden = true; rpList.hidden = true; apForm.hidden = false; apInput.value = ''; apInput.focus(); });
   apForm.querySelector('[data-action="cancel-player"]').addEventListener('click', closePlayerPanels);
-  apForm.addEventListener('submit', e => {
+  // What the gaming bill would be with `count` players from this hour onwards.
+  const gamingFor = count => { const now = Date.now(), HOUR = 60 * 60 * 1000;
+    return sessionPriceSegments(s).reduce((sum, seg) => { const segEnd = Number(seg.startTime) + (Number(seg.hours) || 1) * HOUR;
+      const rate = segEnd > now ? rateFor(s.platform, Math.max(1, count), new Date(Number(seg.startTime))) : (Number(seg.rate) || 0);
+      return sum + rate * (Number(seg.hours) || 1); }, 0); };
+  apForm.addEventListener('submit', async e => {
     e.preventDefault();
     const name = apInput.value.trim();
     if (!name) { apInput.focus(); return; }
     if (!Array.isArray(s.players)) s.players = [];
     if (s.players.length >= MAX_PLAYERS) { showToast('8 players is the most for one session', 'warn'); closePlayerPanels(); return; }
+    // PAY FIRST: the extra player's share for the time that is left.
+    const extraPrice = gamingFor(s.players.length + 1) - sessionRevenue(s);
+    if (!(await collectFirst(s.id, extraPrice, 'player', 'Add player \u2014 ' + name, 'Take the money before adding the player'))) return;
     s.players.push({ name, phone: '' });
     repricePlayers(); closePlayerPanels();
     showToast(name + ' added \u2014 ' + s.players.length + ' players now');
@@ -6390,10 +6466,13 @@ function buildSessionCard(s) {
       + '<button class="btn btn-ghost" data-idx="-1">Cancel</button>';
     apBtns.hidden = true; apForm.hidden = true; rpList.hidden = false;
   });
-  rpList.addEventListener('click', e => {
+  rpList.addEventListener('click', async e => {
     const b = e.target.closest('[data-idx]'); if (!b) return;
     const idx = parseInt(b.dataset.idx, 10);
     if (idx < 1 || idx >= s.players.length) { closePlayerPanels(); return; }
+    const lessBill = gamingFor(s.players.length - 1);
+    const backPlayer = Math.min(sessionRevenue(s) - lessBill, sessionPaidTotal(s) - (lessBill + snackTotal(s.id)));
+    if (!(await refundFirst(s, backPlayer, 'Remove player \u2014 ' + (s.players[idx]?.name || '')))) { closePlayerPanels(); return; }
     const gone = s.players.splice(idx, 1)[0];
     repricePlayers(); closePlayerPanels();
     showToast((gone?.name || 'Player') + ' removed \u2014 ' + s.players.length + ' player' + (s.players.length > 1 ? 's' : '') + ' now');
@@ -6416,7 +6495,7 @@ function buildSessionCard(s) {
     addWrap.classList.toggle('open', !addMenu.hidden);
   });
   addMenu.querySelectorAll('.add-time-item[data-add]').forEach(item => {
-    item.addEventListener('click', e => {
+    item.addEventListener('click', async e => {
       e.stopPropagation();
       const mins = parseInt(item.dataset.add) || 0;
       if (mins < 30) return;
@@ -6436,12 +6515,17 @@ function buildSessionCard(s) {
       if (!Array.isArray(s.priceSegments) || !s.priceSegments.length) s.priceSegments = sessionPriceSegments(s);
       // Added in pieces of at most one hour. A half hour is charged at half
       // the hourly rate. Each piece is marked `added` so a mistake can be undone.
-      let left = mins / 60, segmentStart = s.endTime;
+      let left = mins / 60, segmentStart = s.endTime; const pieces = [];
       while (left > 0) {
         const h = Math.min(1, left);
-        s.priceSegments.push({ startTime: segmentStart, rate: rateFor(s.platform, playerCount, new Date(segmentStart)), hours: h, added: true });
+        pieces.push({ startTime: segmentStart, rate: rateFor(s.platform, playerCount, new Date(segmentStart)), hours: h, added: true });
         segmentStart += h * 60 * 60 * 1000; left -= h;
       }
+      // PAY FIRST: no money, no extra time.
+      addMenu.hidden = true; addWrap.classList.remove('open');
+      const addPrice = pieces.reduce((n, x) => n + x.rate * x.hours, 0);
+      if (!(await collectFirst(s.id, addPrice, 'time', 'Add ' + (mins === 30 ? '30 minutes' : (mins / 60) + ' hour' + (mins === 60 ? '' : 's')) + ' \u2014 ' + (s.players[0]?.name || ''), 'Take the money before adding the time'))) return;
+      pieces.forEach(x => s.priceSegments.push(x));
       s.paidHours = s.priceSegments.reduce((n, seg) => n + (Number(seg.hours) || 1), 0);
       s.hourlyRate = Number(s.priceSegments[0]?.rate) || s.hourlyRate;
       s.endTime += ms;
@@ -6465,13 +6549,16 @@ function buildSessionCard(s) {
   // ---- Undo the last added time (added by mistake) ----
   // Only time that was ADDED can be taken back; the hours the session started
   // with stay. Takes off the most recent piece: 30 minutes or one hour.
-  addMenu.querySelector('[data-undo]').addEventListener('click', e => {
+  addMenu.querySelector('[data-undo]').addEventListener('click', async e => {
     e.stopPropagation();
     const segs = Array.isArray(s.priceSegments) ? s.priceSegments : [];
     const last = segs[segs.length - 1];
     addMenu.hidden = true; addWrap.classList.remove('open');
     if (!last || !last.added || segs.length < 2) { showToast('No added time to undo', 'warn'); return; }
     const ms = (Number(last.hours) || 1) * 60 * 60 * 1000;
+    const lastPrice = (Number(last.rate) || 0) * (Number(last.hours) || 1);
+    const backUndo = Math.min(lastPrice, sessionPaidTotal(s) - (sessionRevenue(s) - lastPrice + snackTotal(s.id)));
+    if (!(await refundFirst(s, backUndo, 'Undo added time \u2014 ' + (s.players[0]?.name || '')))) return;
     segs.pop();
     s.paidHours = segs.reduce((n, seg) => n + (Number(seg.hours) || 1), 0);
     s.endTime -= ms; s.totalMs -= ms;
@@ -6483,25 +6570,34 @@ function buildSessionCard(s) {
     showToast('Removed ' + (ms === 30 * 60 * 1000 ? '30 minutes' : '1 hour'));
   });
 
+  card.querySelector('[data-r="paid"]').addEventListener('click', async e => {
+    if (!e.target.closest('[data-action="collect"]')) return;
+    const owed = Math.round(sessionRevenue(s) + snackTotal(s.id) - sessionPaidTotal(s));
+    if (await collectFirst(s.id, owed, 'balance', 'Collect \u2014 ' + (s.players[0]?.name || ''), 'Money still owed on this session')) refreshSessionCard(card, s);
+  });
   card.querySelector('[data-action="end"]').addEventListener('click', async () => {
     stopEndBeep();
     const snacks = snackTotal(s.id);
     const gaming = sessionRevenue(s);
     const bill = gaming + snacks;
     const adv = Math.max(0, Math.min(Math.round(Number(s.advance) || 0), bill));   // paid online when booking
-    const due = bill - adv;
+    await loadPayLedger();                  // the latest payments, including snacks taken on another device
+    const counter = paidAtCounter(s), pre = Math.round(counter.cash + counter.online);
+    const due = Math.max(0, Math.round(bill - adv - pre));
     const parts = [];
     if (snacks) parts.push('Gaming ' + formatMoney(gaming) + '  +  Snacks ' + formatMoney(snacks));
     if (adv) parts.push('Bill ' + formatMoney(bill) + '  \u2212  advance ' + formatMoney(adv) + ' already paid online');
+    if (pre) parts.push(formatMoney(pre) + ' already paid at the counter');
     let pay = await askPayment(
       'End session \u2014 ' + (s.players[0]?.name || 'session'),
-      adv ? formatMoney(due) + ' to collect' : formatMoney(bill),
+      (adv || pre) ? formatMoney(due) + ' to collect' : formatMoney(bill),
       parts.length ? parts.join('  \u00b7  ') : null,
       due);
     if (!pay) return;                       // cancelled: nothing is ended
-    if (adv) {
-      // What was collected now, plus the advance, is the whole bill on record.
-      const c = Math.round(Number(pay.cash) || 0), o = Math.round(Number(pay.online) || 0) + adv;
+    if (due > 0) recordPay(s.id, 'balance', pay.cash, pay.online).catch(() => {});
+    if (adv || pre) {
+      // What was collected now, plus everything taken earlier, is the whole bill on record.
+      const c = Math.max(0, Math.round((Number(pay.cash) || 0) + counter.cash)), o = Math.max(0, Math.round((Number(pay.online) || 0) + counter.online + adv));
       pay = { method: c > 0 && o > 0 ? 'split' : (c > 0 ? 'cash' : 'online'), cash: c, online: o };
     }
     archiveSession(s, pay);
@@ -6552,6 +6648,15 @@ function refreshSessionCard(card, s) {
   const gamingPrice = sessionRevenue(s);
   const snacksPrice = snackTotal(s.id);
   const totalPrice  = gamingPrice + snacksPrice;
+  const paidEl = card.querySelector('[data-r="paid"]');
+  if (paidEl) {
+    const paidNow = sessionPaidTotal(s), owedNow = Math.round(totalPrice - paidNow), key = paidNow + '|' + owedNow;
+    if (paidEl.dataset.k !== key) { paidEl.dataset.k = key;
+      paidEl.className = 'session-paid ' + (owedNow > 0 ? 'owes' : 'ok');
+      paidEl.innerHTML = owedNow > 0
+        ? `<span><b>${formatMoney(owedNow)}</b> still to collect</span><button class="btn btn-sm" data-action="collect">Collect now</button>`
+        : `<span>\u2713 Paid ${formatMoney(Math.round(totalPrice))}</span>`; }
+  }
   const priceTotalEl = card.querySelector('[data-r="price-total"]');
   const priceDetailEl = card.querySelector('[data-r="price-detail"]');
   if (priceTotalEl) priceTotalEl.textContent = formatMoney(totalPrice);
@@ -8204,7 +8309,7 @@ document.getElementById('testBeep').addEventListener('click', () => beep(1100, 0
    is what left the drawer disagreeing with the report.
 
    total is the WHOLE bill: gaming plus anything on the customer's tab. */
-function askPayment(title, amountText, breakdown, total){
+function askPayment(title, amountText, breakdown, total, question){
   const due = Math.round(Number(total) || 0);
   return new Promise(resolve => {
     const wrap = document.createElement('div');
@@ -8214,7 +8319,7 @@ function askPayment(title, amountText, breakdown, total){
         <div class="paysheet-title">${escapeHtml(title)}</div>
         <div class="paysheet-amount">${amountText || ''}</div>
         ${breakdown ? `<div class="paysheet-break">${escapeHtml(breakdown)}</div>` : ''}
-        ${due > 0 ? `<div class="paysheet-q">How was it paid?</div>
+        ${due > 0 ? `<div class="paysheet-q">${escapeHtml(question || 'How was it paid?')}</div>
         <div class="paysheet-row">
           <button class="paysheet-btn cash" data-pay="cash"><span>&#128181;</span>Cash</button>
           <button class="paysheet-btn online" data-pay="online"><span>&#128241;</span>Online</button>

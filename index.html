@@ -204,12 +204,16 @@ async function loadBookings(){
     S.role = prof.data.role; S.name = prof.data.name;
     const who = document.querySelector('.who'); if (who) who.textContent = S.name + ' \u00b7 ' + S.role;
   }
-  const [m, b, ss] = await Promise.all([
+  const [m, b, ss, hh] = await Promise.all([
     sb.from('gz_machines').select('*').order('sort'),
     sb.from('gz_bookings').select('*').gte('end_time', from).order('start_time'),
-    sb.from('gz_sessions').select('id,machine_id,booking_id,players,game,start_time,end_time')
+    sb.from('gz_sessions').select('id,machine_id,booking_id,players,game,start_time,end_time'),
+    sb.from('gz_history').select('id,machine_id,booking_id,player_names,player_count,game,start_time,end_time,revenue').gte('end_time', from).not('machine_id', 'is', null).is('booking_id', null)
   ]);
-  S.sessions = (ss.data || []).filter(x => x.machine_id && !x.booking_id);   /* walk-ins; booked sessions are drawn by their booking */
+  const nm = v => (v && typeof v === 'object') ? (v.name || '') : (v || '');
+  S.sessions = (ss.data || []).filter(x => x.machine_id && !x.booking_id)
+      .map(x => ({ ...x, who: nm(x.players && x.players[0]) || 'Walk-in', phone: (x.players && x.players[0] && x.players[0].phone) || '', count: (x.players || []).length || 1, done: false }))
+    .concat((hh.data || []).map(x => ({ ...x, who: nm(x.player_names && x.player_names[0]) || 'Walk-in', phone: '', count: x.player_count || 1, done: true })));   /* walk-ins; booked sessions are drawn by their booking */
   S.machines = (m.data || []).filter(x => x.active && x.bookable !== false); S.bookings = b.data || [];
   if (isOwner()) {
     const p = await sb.from('gz_booking_payments').select('*').eq('status', 'pending');
@@ -319,17 +323,20 @@ function renderBookings(){
       ${S.machines.map((m, mi) => `<div class="v-col"><div class="closed" style="top:${18 * HH}px;height:${6 * HH}px">${mi === Math.floor(S.machines.length / 2) ? 'Closed<br>3 AM – 9 AM' : ''}</div>
        ${dayRows.filter(b => b.machine_id === m.id).map(b => { const top = (b.start_time - base) / H * HH, hgt = (b.end_time - b.start_time) / H * HH - 4;
          return `<button class="blk ${esc(b.state)} ${b.session_id && b.state === 'confirmed' ? 'live' : ''}" data-a="detail" data-v="${esc(b.id)}" style="top:${top + 2}px;height:${hgt}px"><b>${esc(b.customer_name)}</b><span>${esc(b.game)}${hgt < 58 ? ' · ' + hm(b.start_time) + ' – ' + hm(b.end_time) : ''}</span>${hgt >= 58 ? `<span>${hm(b.start_time)} – ${hm(b.end_time)}</span>` : ''}</button>`; }).join('')}
-       ${S.sessions.filter(x => x.machine_id === m.id).map(x => { const st = Math.max(x.start_time, base), en = Math.min(Math.max(x.end_time, Date.now()), end);
-         if (en <= st) return ''; const top = (st - base) / H * HH, hgt = (en - st) / H * HH - 4, who = (x.players && x.players[0] && x.players[0].name) || 'Walk-in';
-         return `<div class="blk live walkin" style="top:${top + 2}px;height:${hgt}px"><b>${esc(who)}</b><span>Walk-in \u00b7 ${esc(x.game || '')}${hgt < 58 ? ' \u00b7 ' + hm(x.start_time) + ' \u2013 ' + hm(x.end_time) : ''}</span>${hgt >= 58 ? `<span>${hm(x.start_time)} \u2013 ${hm(x.end_time)}</span>` : ''}</div>`; }).join('')}</div>`).join('')}
+       ${S.sessions.filter(x => x.machine_id === m.id).map(x => { const st = Math.max(x.start_time, base), en = Math.min(x.done ? x.end_time : Math.max(x.end_time, Date.now()), end);
+         if (en <= st) return ''; const top = (st - base) / H * HH, hgt = Math.max(14, (en - st) / H * HH - 4), bits = ['Walk-in'].concat(x.game ? [esc(x.game)] : []);
+         return `<div class="blk ${x.done ? 'completed' : 'live'} walkin" style="top:${top + 2}px;height:${hgt}px"><b>${esc(x.who)}</b><span>${bits.join(' \u00b7 ')}${hgt < 58 ? ' \u00b7 ' + hm(x.start_time) + ' \u2013 ' + hm(x.end_time) : ''}</span>${hgt >= 58 ? `<span>${hm(x.start_time)} \u2013 ${hm(x.end_time)}</span>` : ''}</div>`; }).join('')}</div>`).join('')}
       ${nowTop >= 0 && nowTop <= 24 * HH ? `<div class="now" style="top:${nowTop}px"></div>` : ''}</div></div></div>
     <div class="leg"><span><i style="background:var(--ok)"></i>Confirmed</span><span><i style="background:#2563eb"></i>Playing now (stripes = walk-in)</span><span><i style="background:#f59e0b"></i>Pending check</span><span><i style="background:#94a3b8"></i>Finished</span><span><i style="background:var(--danger)"></i>Now</span><span>Tap a booking for details.</span></div>`;
 
+  const listRows = dayRows.concat(S.sessions.filter(x => x.start_time < end && Math.max(x.end_time, x.done ? 0 : Date.now()) > base).map(x => ({ ...x, walk: true })))
+    .sort((a, b) => a.start_time - b.start_time);
   const list = `<div class="sec"><h2>Day list</h2><span class="tag">${dayLabel(S.day)} · ${dayDate(S.day)}</span></div><div class="glass" style="overflow-x:auto"><table>
      <tr><th>Time</th><th>Machine</th><th>Customer</th><th>Phone</th><th>Game</th><th>Players</th><th>Paid</th><th>Collect</th><th>Status</th></tr>
-     ${dayRows.length ? dayRows.map(b => `<tr><td><b>${hm(b.start_time)} – ${hm(b.end_time)}</b></td><td><b>${esc(b.machine_id)}</b></td><td>${esc(b.customer_name)}</td><td class="mono">${esc(b.customer_phone)}</td><td>${esc(b.game)}</td><td>${b.players}</td>
+     ${listRows.length ? listRows.map(b => b.walk ? `<tr><td><b>${hm(b.start_time)} \u2013 ${hm(b.end_time)}</b></td><td><b>${esc(b.machine_id)}</b></td><td>${esc(b.who)}</td><td class="mono">${esc(b.phone || '\u2014')}</td><td>${esc(b.game || '\u2014')}</td><td>${b.count}</td>
+       <td>${b.done && isOwner() ? rs(b.revenue || 0) : '\u2014'}</td><td>${b.done ? 'Paid' : 'At counter'}</td><td><span class="st ${b.done ? 'completed' : 'confirmed'}">${b.done ? 'Walk-in \u00b7 finished' : 'Walk-in \u00b7 playing'}</span></td></tr>` : `<tr><td><b>${hm(b.start_time)} – ${hm(b.end_time)}</b></td><td><b>${esc(b.machine_id)}</b></td><td>${esc(b.customer_name)}</td><td class="mono">${esc(b.customer_phone)}</td><td>${esc(b.game)}</td><td>${b.players}</td>
        <td>${b.state === 'pending' ? '—' : rs(b.paid)}</td><td>${b.state === 'pending' ? '—' : (b.total - b.paid > 0 ? '<b>' + rs(b.total - b.paid) + '</b>' : 'Paid')}</td><td><span class="st ${esc(b.state)}">${esc(stLabel[b.state] || b.state)}</span></td></tr>`).join('')
-      : `<tr><td colspan="9" class="empty">No bookings on this day yet.</td></tr>`}</table></div>`;
+      : `<tr><td colspan="9" class="empty">No bookings or sessions on this day yet.</td></tr>`}</table></div>`;
 
   const gone = S.bookings.filter(b => ['cancelled','declined','released'].includes(b.state) && b.start_time < end && b.end_time > base);
   const goneList = !gone.length ? '' : `<div class="sec"><h2>Cancelled or declined</h2><span class="tag">${gone.length} on this day</span></div><div class="glass" style="overflow-x:auto"><table>

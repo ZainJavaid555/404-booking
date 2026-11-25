@@ -1409,6 +1409,14 @@
   .machine-btn.soon small { color: var(--warning-strong); }
   .machine-hint { font-size: 12.5px; color: var(--warning-strong); margin-top: 6px; min-height: 16px; }
   .tag.machine { background: var(--text); color: #fff; font-weight: 700; }
+  .upcoming-title { font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 800; margin: 34px 0 4px; }
+  .upcoming-title span { font-size: 13px; font-weight: 700; color: var(--text-dim); margin-left: 6px; }
+  .session-card.upcoming { border-style: dashed; background: rgba(255,255,255,.55); }
+  .session-card.upcoming .session-time { color: var(--text-dim); opacity: .55; }
+  .up-pill { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; border-radius: 99px; padding: 6px 10px; white-space: nowrap; background: #d1fae5; color: #065f46; }
+  .up-pill.wait { background: #fef3c7; color: #92400e; }
+  .up-note { margin-top: 10px; font-size: 13.5px; font-weight: 600; border-radius: 10px; padding: 9px 11px; background: rgba(15,23,42,.05); position: relative; z-index: 1; }
+  .up-note.warn { background: #fef3c7; color: #92400e; }
   .session-advance { margin-top: 8px; font-size: 12.5px; color: var(--accent-strong); background: rgba(8,145,178,.08); border-radius: 10px; padding: 7px 10px; position: relative; z-index: 1; }
   /* The zone no longer has PCs. Old PC records still display. */
   #platformChoice .radio-option[data-value="pc"], .radio-option[data-value="pc"] { display: none; }
@@ -3649,6 +3657,11 @@
 <div class="empty-icon">[ 0 ]</div>
 <div class="empty-title">No sessions running</div>
 <div class="empty-sub">Start a new session from the New Session tab.</div>
+</div>
+<div id="upcomingWrap" hidden>
+<h3 class="upcoming-title">Coming up <span id="upcomingCount"></span></h3>
+<p class="view-sub" style="margin-bottom:14px">Online bookings. The timer is locked and starts by itself at the booked time.</p>
+<div class="sessions-grid" id="upcomingGrid"></div>
 </div>
 </section>
 <section class="view" id="view-players">
@@ -6077,14 +6090,57 @@ async function loadMachinesAndBookings(){
   try {
     const [m, b] = await Promise.all([
       sb.from('gz_machines').select('id,platform,active,sort').eq('active', true).order('sort'),
-      sb.from('gz_bookings').select('id,booking_no,machine_id,customer_name,start_time,end_time,state,session_id')
+      sb.from('gz_bookings').select('id,booking_no,machine_id,customer_name,start_time,end_time,state,session_id,game,players,paid,total')
         .in('state', ['pending','confirmed']).gt('end_time', Date.now())
     ]);
     if (m.error) throw m.error;
     link.machines = m.data || []; link.bookings = (b && b.data) || []; link.ready = true;
   } catch (e) { console.warn('machines not loaded', e); }
-  renderMachineChoice();
+  renderMachineChoice(); renderUpcoming();
 }
+/* Online bookings that have not started yet, shown under the running sessions.
+   Their timer is locked. The database starts them at the booked time; this page
+   also nudges it the moment a booking falls due, so staff never wait a minute. */
+let upcomingHtml = '', lastNudge = 0;
+function renderUpcoming(){
+  const wrap = document.getElementById('upcomingWrap'), grid = document.getElementById('upcomingGrid');
+  if (!wrap || !grid) return;
+  const now = Date.now();
+  const list = link.bookings.filter(b => !b.session_id && b.end_time > now && b.start_time < now + 12 * 3600000)
+                            .sort((a, b) => a.start_time - b.start_time);
+  wrap.hidden = !list.length;
+  document.getElementById('upcomingCount').textContent = list.length ? '(' + list.length + ')' : '';
+  if (list.length && !state.sessions.length) sessionsEmpty.style.display = 'none';
+  const due = list.filter(b => b.state === 'confirmed' && b.start_time <= now && !machineSession(b.machine_id));
+  if (due.length && now - lastNudge > 20000 && sb) { lastNudge = now; sb.rpc('gz_autostart_bookings').then(() => loadMachinesAndBookings()).catch(() => {}); }
+  const html = list.map(b => {
+    const mins = Math.round((b.end_time - b.start_time) / 60000), toGo = Math.ceil((b.start_time - now) / 60000);
+    const inTxt = toGo >= 60 ? Math.floor(toGo / 60) + ' hr' + (toGo % 60 ? ' ' + (toGo % 60) + ' min' : '') : toGo + ' min';
+    const busy = machineSession(b.machine_id);
+    let note, warn = false;
+    if (b.state === 'pending') { note = 'Payment is being checked by an owner. It will not start until approved.'; warn = true; }
+    else if (toGo > 0) note = 'Starts by itself in ' + inTxt + '.';
+    else if (busy) { note = b.machine_id + ' is still in use by ' + (busy.players[0]?.name || 'another session') + '. End that session and this one starts.'; warn = true; }
+    else note = 'Starting now\u2026';
+    const paid = Number(b.paid) || 0, total = Number(b.total) || 0;
+    return `<div class="session-card upcoming">
+      <div class="session-head">
+        <div class="session-players">
+          <div class="player-main">${escapeHtml(b.customer_name)}</div>
+          <div class="player-extra">Booking #${escapeHtml(String(b.booking_no))} \u00b7 ${b.players || 1} player${(b.players || 1) === 1 ? '' : 's'}</div>
+          <div class="session-tags"><span class="tag machine">${escapeHtml(b.machine_id)}</span>${b.game ? `<span class="tag game">${escapeHtml(b.game)}</span>` : ''}</div>
+        </div>
+        <div class="up-pill ${b.state === 'pending' ? 'wait' : ''}">${b.state === 'pending' ? 'Payment check' : 'Booked'}</div>
+      </div>
+      <div class="session-time mono">\uD83D\uDD12 ${mins}:00</div>
+      <div class="session-meta"><span>Starts ${formatTime(b.start_time)}</span><span>Ends ${formatTime(b.end_time)}</span></div>
+      <div class="up-note ${warn ? 'warn' : ''}">${escapeHtml(note)}</div>
+      ${b.state === 'confirmed' ? `<div class="session-advance">Paid online ${formatMoney(paid)} of ${formatMoney(total)}${total - paid > 0 ? ' \u00b7 collect ' + formatMoney(total - paid) + ' at the counter' : ''}</div>` : ''}
+    </div>`;
+  }).join('');
+  if (html !== upcomingHtml) { upcomingHtml = html; grid.innerHTML = html; }
+}
+setInterval(() => { try { renderUpcoming(); } catch (e) {} }, 5000);
 function renderMachineChoice(){
   const field = document.getElementById('machineField'), grid = document.getElementById('machineChoice'), hint = document.getElementById('machineHint');
   if (!field || !grid) return;
@@ -6187,6 +6243,7 @@ function renderSessions() {
   if (!sessions.length) {
     sessionsGrid.innerHTML = '';
     sessionsEmpty.style.display = 'block';
+    try { renderUpcoming(); } catch (e) {}
     return;
   }
   sessionsEmpty.style.display = 'none';

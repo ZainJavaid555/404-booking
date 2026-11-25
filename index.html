@@ -91,7 +91,7 @@ iframe{display:block;width:100%;height:calc(100vh - var(--bar));border:0;backgro
 .blk{position:absolute;left:5px;right:5px;border-radius:9px;padding:0 9px 0 10px;text-align:left;overflow:hidden;display:flex;flex-direction:column;justify-content:center;border-left:3px solid;z-index:1}
 .blk b{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
 .blk span{font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
-.blk.confirmed{background:#d1fae5;border-color:var(--ok)}.blk.live{background:#bfdbfe;border-color:#2563eb}.blk.pending{background:#fef3c7;border-color:#f59e0b}.blk.completed{background:#e2e8f0;border-color:#94a3b8}
+.blk.confirmed{background:#d1fae5;border-color:var(--ok)}.blk.live{background:#bfdbfe;border-color:#2563eb}.blk.walkin{cursor:default;background-image:repeating-linear-gradient(135deg,rgba(37,99,235,.10) 0 8px,transparent 8px 16px)}.blk.pending{background:#fef3c7;border-color:#f59e0b}.blk.completed{background:#e2e8f0;border-color:#94a3b8}
 .leg{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text-dim);margin-top:10px}
 .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
 table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -136,7 +136,7 @@ const dayLabel = o => o === 0 ? 'Today' : o === 1 ? 'Tomorrow' : o === -1 ? 'Yes
 const dayDate  = o => { const p = pk(dayStart(o)); return p.getUTCDate() + ' ' + MO[p.getUTCMonth()]; };
 
 const S = { user:null, role:null, name:'', tab:'sessions', loaded:{}, err:'', busy:false,
-            machines:[], bookings:[], payments:[], urls:{}, day:0, push:false, modal:null, decl:null, appr:null, apprVal:null };
+            machines:[], bookings:[], sessions:[], payments:[], urls:{}, day:0, push:false, modal:null, decl:null, appr:null, apprVal:null };
 const isOwner = () => S.role === 'owner';
 const app = document.getElementById('app');
 
@@ -204,10 +204,12 @@ async function loadBookings(){
     S.role = prof.data.role; S.name = prof.data.name;
     const who = document.querySelector('.who'); if (who) who.textContent = S.name + ' \u00b7 ' + S.role;
   }
-  const [m, b] = await Promise.all([
+  const [m, b, ss] = await Promise.all([
     sb.from('gz_machines').select('*').order('sort'),
-    sb.from('gz_bookings').select('*').gte('end_time', from).order('start_time')
+    sb.from('gz_bookings').select('*').gte('end_time', from).order('start_time'),
+    sb.from('gz_sessions').select('id,machine_id,booking_id,players,game,start_time,end_time')
   ]);
+  S.sessions = (ss.data || []).filter(x => x.machine_id && !x.booking_id);   /* walk-ins; booked sessions are drawn by their booking */
   S.machines = (m.data || []).filter(x => x.active && x.bookable !== false); S.bookings = b.data || [];
   if (isOwner()) {
     const p = await sb.from('gz_booking_payments').select('*').eq('status', 'pending');
@@ -279,7 +281,7 @@ function subscribe(){
   chan = sb.channel('gz-bookings').on('postgres_changes', { event:'*', schema:'public', table:'gz_bookings' }, p => {
     if (p && p.eventType === 'INSERT') newBookingAlert(p.new);
     loadBookings();
-  }).subscribe();
+  }).on('postgres_changes', { event:'*', schema:'public', table:'gz_sessions' }, () => loadBookings()).subscribe();
   setInterval(() => { if (S.tab === 'bookings' && !S.modal) renderBookings(); }, 60000);
 }
 const payFor = id => S.payments.find(p => p.booking_id === id);
@@ -316,9 +318,12 @@ function renderBookings(){
      <div class="v-body" style="${cols};height:${24 * HH}px;background-size:100% ${HH}px"><div class="v-times">${hrs.map((t, i) => `<span style="top:${i * HH}px">${hm(t)}</span>`).join('')}</div>
       ${S.machines.map((m, mi) => `<div class="v-col"><div class="closed" style="top:${18 * HH}px;height:${6 * HH}px">${mi === Math.floor(S.machines.length / 2) ? 'Closed<br>3 AM – 9 AM' : ''}</div>
        ${dayRows.filter(b => b.machine_id === m.id).map(b => { const top = (b.start_time - base) / H * HH, hgt = (b.end_time - b.start_time) / H * HH - 4;
-         return `<button class="blk ${esc(b.state)} ${b.session_id && b.state === 'confirmed' ? 'live' : ''}" data-a="detail" data-v="${esc(b.id)}" style="top:${top + 2}px;height:${hgt}px"><b>${esc(b.customer_name)}</b><span>${esc(b.game)}${hgt < 58 ? ' · ' + hm(b.start_time) + ' – ' + hm(b.end_time) : ''}</span>${hgt >= 58 ? `<span>${hm(b.start_time)} – ${hm(b.end_time)}</span>` : ''}</button>`; }).join('')}</div>`).join('')}
+         return `<button class="blk ${esc(b.state)} ${b.session_id && b.state === 'confirmed' ? 'live' : ''}" data-a="detail" data-v="${esc(b.id)}" style="top:${top + 2}px;height:${hgt}px"><b>${esc(b.customer_name)}</b><span>${esc(b.game)}${hgt < 58 ? ' · ' + hm(b.start_time) + ' – ' + hm(b.end_time) : ''}</span>${hgt >= 58 ? `<span>${hm(b.start_time)} – ${hm(b.end_time)}</span>` : ''}</button>`; }).join('')}
+       ${S.sessions.filter(x => x.machine_id === m.id).map(x => { const st = Math.max(x.start_time, base), en = Math.min(Math.max(x.end_time, Date.now()), end);
+         if (en <= st) return ''; const top = (st - base) / H * HH, hgt = (en - st) / H * HH - 4, who = (x.players && x.players[0] && x.players[0].name) || 'Walk-in';
+         return `<div class="blk live walkin" style="top:${top + 2}px;height:${hgt}px"><b>${esc(who)}</b><span>Walk-in \u00b7 ${esc(x.game || '')}${hgt < 58 ? ' \u00b7 ' + hm(x.start_time) + ' \u2013 ' + hm(x.end_time) : ''}</span>${hgt >= 58 ? `<span>${hm(x.start_time)} \u2013 ${hm(x.end_time)}</span>` : ''}</div>`; }).join('')}</div>`).join('')}
       ${nowTop >= 0 && nowTop <= 24 * HH ? `<div class="now" style="top:${nowTop}px"></div>` : ''}</div></div></div>
-    <div class="leg"><span><i style="background:var(--ok)"></i>Confirmed</span><span><i style="background:#2563eb"></i>Playing now</span><span><i style="background:#f59e0b"></i>Pending check</span><span><i style="background:#94a3b8"></i>Finished</span><span><i style="background:var(--danger)"></i>Now</span><span>Tap a booking for details.</span></div>`;
+    <div class="leg"><span><i style="background:var(--ok)"></i>Confirmed</span><span><i style="background:#2563eb"></i>Playing now (stripes = walk-in)</span><span><i style="background:#f59e0b"></i>Pending check</span><span><i style="background:#94a3b8"></i>Finished</span><span><i style="background:var(--danger)"></i>Now</span><span>Tap a booking for details.</span></div>`;
 
   const list = `<div class="sec"><h2>Day list</h2><span class="tag">${dayLabel(S.day)} · ${dayDate(S.day)}</span></div><div class="glass" style="overflow-x:auto"><table>
      <tr><th>Time</th><th>Machine</th><th>Customer</th><th>Phone</th><th>Game</th><th>Players</th><th>Paid</th><th>Collect</th><th>Status</th></tr>

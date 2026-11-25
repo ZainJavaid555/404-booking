@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#0891b2">
 <meta name="robots" content="noindex">
 <title>404 Gaming Zone</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./admin/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Bricolage+Grotesque:wght@600;700;800&display=swap" rel="stylesheet"/>
@@ -133,7 +136,7 @@ const dayLabel = o => o === 0 ? 'Today' : o === 1 ? 'Tomorrow' : o === -1 ? 'Yes
 const dayDate  = o => { const p = pk(dayStart(o)); return p.getUTCDate() + ' ' + MO[p.getUTCMonth()]; };
 
 const S = { user:null, role:null, name:'', tab:'sessions', loaded:{}, err:'', busy:false,
-            machines:[], bookings:[], payments:[], urls:{}, day:0, modal:null, decl:null, appr:null, apprVal:null };
+            machines:[], bookings:[], payments:[], urls:{}, day:0, push:false, modal:null, decl:null, appr:null, apprVal:null };
 const isOwner = () => S.role === 'owner';
 const app = document.getElementById('app');
 
@@ -160,7 +163,8 @@ async function enter(user){
   const { data } = await sb.from('profiles').select('name,role').eq('id', user.id).maybeSingle();
   if (!data) { await sb.auth.signOut(); S.err = 'This account has no access. Ask an owner to add you.'; gate(); return; }
   S.user = user; S.role = data.role; S.name = data.name;
-  shell(); await loadBookings(); subscribe();
+  shell(); await loadBookings(); subscribe(); pushCheck();
+  if (/[?&]tab=bookings/.test(location.search)) show('bookings');
 }
 
 /* -------------------------------------------------------------- shell */
@@ -232,8 +236,43 @@ function titleCount(){ const n = S.bookings.filter(b => b.state === 'pending').l
 function newBookingAlert(row){
   if (!isOwner() || !row || row.state !== 'pending') return;
   beep();
-  try { if (window.Notification && Notification.permission === 'granted')
+  try { if (!S.push && window.Notification && Notification.permission === 'granted')
     new Notification('New booking to check', { body: (row.customer_name || '') + ' \u00b7 ' + (row.machine_id || '') + ' \u00b7 ' + hm(row.start_time), tag: 'bk-' + row.id }); } catch (e) {}
+}
+/* Phone alerts (web push): work even when the site is closed. The phone's
+   notification address is saved in the database for the signed-in owner. */
+const PUSH_FN = CONFIG.SUPABASE_URL + '/functions/v1/booking-alert';
+function b64ToBytes(b){ const pad = '='.repeat((4 - b.length % 4) % 4), raw = atob((b + pad).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(raw, c => c.charCodeAt(0)); }
+async function pushSave(sub){ const j = sub.toJSON(); return sb.rpc('gz_push_subscribe', { p_endpoint:j.endpoint, p_p256dh:j.keys.p256dh, p_auth:j.keys.auth, p_device:navigator.userAgent }); }
+async function pushCheck(){
+  try {
+    if (!isOwner() || !('serviceWorker' in navigator) || !('PushManager' in window) || Notification.permission !== 'granted') return;
+    const reg = await navigator.serviceWorker.getRegistration('./'); if (!reg) return;
+    const sub = await reg.pushManager.getSubscription(); if (!sub) return;
+    const r = await pushSave(sub); if (r.error) return;
+    if (!S.push) { S.push = true; if (S.tab === 'bookings') renderBookings(); }
+  } catch (e) {}
+}
+async function pushEnable(){
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !window.Notification)
+    throw new Error(ios ? 'On iPhone: tap Share, then "Add to Home Screen". Open 404 Zone from the home screen and tap Turn on alerts again.' : 'This browser cannot show alerts. Use Chrome.');
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') throw new Error('Alerts are blocked for this site. Allow notifications in the browser settings, then try again.');
+  const reg = await navigator.serviceWorker.register('./sw.js', { scope:'./' });
+  await navigator.serviceWorker.ready;
+  const k = await (await fetch(PUSH_FN)).json();
+  if (!k.publicKey) throw new Error('Alerts are not set up yet.');
+  let sub = await reg.pushManager.getSubscription();
+  if (sub) { const cur = sub.options && sub.options.applicationServerKey ? btoa(String.fromCharCode(...new Uint8Array(sub.options.applicationServerKey))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') : '';
+    if (cur && cur !== k.publicKey) { await sub.unsubscribe(); sub = null; } }
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:b64ToBytes(k.publicKey) });
+  const r = await pushSave(sub); if (r.error) throw new Error(r.error.message);
+  S.push = true;
+}
+async function pushTest(){
+  const r = await sb.functions.invoke('booking-alert', { body:{ test:true } });
+  if (r.error || !r.data || !r.data.sent) throw new Error('The test alert did not go out. Tap Turn on alerts again.');
 }
 function subscribe(){
   if (chan) return;
@@ -256,7 +295,7 @@ function renderBookings(){
   const cols = 'grid-template-columns:58px repeat(' + Math.max(1, S.machines.length) + ',minmax(128px,1fr))';
   const nowTop = (Date.now() - base) / H * HH;
 
-  const queue = !isOwner() ? '' : `<div class="sec"><h2>Payments to check</h2><span style="display:flex;gap:10px;align-items:center">${window.Notification && Notification.permission === 'default' ? `<button class="link" data-a="notify">Turn on alerts</button>` : ''}<span class="tag">${pend.length} waiting</span></span></div>` +
+  const queue = !isOwner() ? '' : `<div class="sec"><h2>Payments to check</h2><span style="display:flex;gap:10px;align-items:center">${S.push ? `<button class="link" data-a="pushtest">Alerts on \u00b7 send a test</button>` : `<button class="link" data-a="notify">Turn on alerts</button>`}<span class="tag">${pend.length} waiting</span></span></div>` +
     (pend.length ? `<div class="grid">` + pend.map(b => { const p = payFor(b.id), url = p && S.urls[p.proof_path];
       return `<div class="glass card"><div class="proof"><div class="shot">${url ? `<img src="${esc(url)}" alt="Payment screenshot" data-a="zoom" data-v="${esc(url)}">` : 'No<br>screenshot'}</div>
        <div style="flex:1;min-width:0"><div class="tag">#${esc(b.booking_no)}</div><h3 style="margin-top:2px">${esc(b.customer_name)}</h3>
@@ -352,7 +391,8 @@ document.addEventListener('click', async e => {
     if (error) { S.modal.err = error.message; modal(); }
     else { S.modal = null; modal(); await loadBookings(); show('sessions'); }
   }
-  else if (a === 'notify') { try { await Notification.requestPermission(); } catch (e) {} beep(); renderBookings(); }
+  else if (a === 'notify') { el.disabled = true; try { await pushEnable(); beep(); await pushTest(); } catch (e) { alert(e.message || String(e)); } renderBookings(); }
+  else if (a === 'pushtest') { el.disabled = true; try { await pushTest(); } catch (e) { S.push = false; alert(e.message || String(e)); } renderBookings(); }
   else if (a === 'cancel1') { S.modal.cancel = true; S.modal.err = ''; modal(); }
   else if (a === 'cancel2') {
     el.disabled = true;

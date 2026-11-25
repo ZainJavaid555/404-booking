@@ -5457,6 +5457,8 @@ customStartToggle.addEventListener('change', () => {
   }
 });
 customStartTime.addEventListener('input', updateCustomTimeHint);
+customStartTime.addEventListener('input', () => { if (typeof renderMachineChoice === 'function') renderMachineChoice(); });
+customStartToggle.addEventListener('change', () => { if (typeof renderMachineChoice === 'function') renderMachineChoice(); });
 
 function updateCustomTimeHint() {
   const ts = parseTimeToTimestamp(customStartTime.value);
@@ -5944,7 +5946,7 @@ function startSession() {
     const inUse = machineSession(sessionMachine);
     if (inUse) { alert(sessionMachine + ' is already in use by ' + (inUse.players[0]?.name || 'another session') + '. End that session first.'); renderMachineChoice(); return; }
     const nb = machineNextBooking(sessionMachine);
-    if (nb && nb.start_time < now + state.settings.totalMin * 60 * 1000) {
+    if (nb && nb.start_time < plannedStart() + state.settings.totalMin * 60 * 1000) {
       alert(sessionMachine + ' is booked at ' + fmtClock(nb.start_time) + ' by ' + nb.customer_name + '. There is not enough time for a session before that. Pick another machine.');
       renderMachineChoice(); return;
     }
@@ -6043,6 +6045,13 @@ const link = { machines: [], bookings: [], ready: false };
 const fmtClock = ts => formatTime(ts);
 function machineSession(id){ return state.sessions.find(x => x.machineId === id) || null; }
 /* The next booking that still needs this machine: locked, not yet started. */
+/* When the new session will start: the backdated time if one is set, else now. */
+function plannedStart(){
+  const now = Date.now();
+  try { if (customStartToggle && customStartToggle.checked && customStartTime.value) {
+    const ts = parseTimeToTimestamp(customStartTime.value); if (ts && ts <= now + 60000) return ts; } } catch (e) {}
+  return now;
+}
 function machineNextBooking(id, exceptBookingId){
   const now = Date.now();
   return link.bookings.filter(b => b.machine_id === id && !b.session_id && b.id !== exceptBookingId && b.end_time > now)
@@ -6072,7 +6081,7 @@ function renderMachineChoice(){
   grid.innerHTML = list.map(m => {
     const busy = machineSession(m.id); let nb = machineNextBooking(m.id);
     if (nb && nb.start_time > now + 12 * 3600000) nb = null;   // a booking far away is not worth a warning
-    const bookedNow = nb && nb.start_time <= now, tooSoon = nb && !bookedNow && nb.start_time < now + need;
+    const bookedNow = nb && nb.start_time <= now, tooSoon = nb && !bookedNow && nb.start_time < plannedStart() + need;
     const off = !!busy || bookedNow || tooSoon;
     const note = busy ? 'In use \u00b7 ' + (busy.players[0]?.name || '')
                : bookedNow ? 'Booked now \u00b7 ' + nb.customer_name

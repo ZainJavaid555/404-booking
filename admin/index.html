@@ -2847,6 +2847,7 @@
     border: 1px solid var(--border); background: var(--surface);
     font-family: inherit; font-size: 17px; font-weight: 800; color: var(--text);
   }
+  .paysheet-btn:disabled { opacity: .35; cursor: not-allowed; }
   .paysplit-hint { font-size: 12.5px; font-weight: 700; margin: 2px 0 10px; min-height: 17px; }
   .paysplit-hint.ok  { color: #15803d; }
   .paysplit-hint.bad { color: #b45309; }
@@ -6100,7 +6101,7 @@ async function loadMachinesAndBookings(){
   try {
     const [m, b] = await Promise.all([
       sb.from('gz_machines').select('id,platform,active,sort').eq('active', true).order('sort'),
-      sb.from('gz_bookings').select('id,booking_no,machine_id,customer_name,start_time,end_time,state,session_id,game,players,paid,total')
+      sb.from('gz_bookings').select('id,booking_no,machine_id,customer_name,start_time,end_time,state,session_id,game,players,paid,total,orig_start')
         .in('state', ['pending','confirmed']).gt('end_time', Date.now())
     ]);
     if (m.error) throw m.error;
@@ -6145,12 +6146,91 @@ function renderUpcoming(){
       <div class="session-time mono">\uD83D\uDD12 ${mins}:00</div>
       <div class="session-meta"><span>Starts ${formatTime(b.start_time)}</span><span>Ends ${formatTime(b.end_time)}</span></div>
       <div class="up-note ${warn ? 'warn' : ''}">${escapeHtml(note)}</div>
+      ${b.orig_start && b.orig_start !== b.start_time ? `<div class="up-note">Moved ${Math.abs(Math.round((b.start_time - b.orig_start) / 60000))} min ${b.start_time < b.orig_start ? 'earlier' : 'later'} \u00b7 was booked for ${formatTime(b.orig_start)}</div>` : ''}
+      <button class="btn btn-ghost" style="margin-top:10px;width:100%;position:relative;z-index:1" data-shift="${escapeHtml(b.id)}">\u21c4 Start early or late</button>
       ${b.state === 'confirmed' ? `<div class="session-advance">Paid online ${formatMoney(paid)} of ${formatMoney(total)}${total - paid > 0 ? ' \u00b7 collect ' + formatMoney(total - paid) + ' at the counter' : ''}</div>` : ''}
     </div>`;
   }).join('');
   if (html !== upcomingHtml) { upcomingHtml = html; grid.innerHTML = html; }
 }
 setInterval(() => { try { renderUpcoming(); } catch (e) {} }, 5000);
+
+/* ---- Start a booking a little early or late. The whole slot moves, so the
+   customer keeps their full time. The database enforces every rule; this
+   screen only greys out what it already knows will be refused. ---- */
+function shiftLimits(b){
+  const now = Date.now(), M = 60000, base = b.orig_start || b.start_time, used = Math.round((b.start_time - base) / M);
+  let early = 30 + used, late = 30 - used, whyE = '', whyL = '';
+  const mine = x => x.machine_id === b.machine_id && x.id !== b.id;
+  const prevEnd = Math.max(0, ...link.bookings.filter(x => mine(x) && x.end_time <= b.start_time).map(x => x.end_time));
+  const sess = state.sessions.find(x => x.machineId === b.machine_id && x.bookingId !== b.id);
+  const sessEnd = sess ? Math.max(sess.endTime, now) : 0;
+  const freeFrom = Math.max(prevEnd, sessEnd, b.session_id ? 0 : now);
+  const roomE = Math.floor((b.start_time - freeFrom) / M);
+  if (roomE < early) { early = Math.max(0, roomE);
+    whyE = sessEnd === freeFrom && sess ? b.machine_id + ' is in use by ' + (sess.players[0]?.name || 'another session') + ' until ' + formatTime(sess.endTime) + '.'
+         : prevEnd === freeFrom && prevEnd ? b.machine_id + ' has another booking until ' + formatTime(prevEnd) + '.'
+         : 'The booked time is ' + Math.max(0, roomE) + ' min away.'; }
+  else if (early < 30) whyE = 'Already moved ' + (-used) + ' min earlier. 30 min is the most.';
+  const next = link.bookings.filter(x => mine(x) && x.start_time >= b.end_time).sort((a, c) => a.start_time - c.start_time)[0];
+  const roomNext = next ? Math.floor((next.start_time - b.end_time) / M) : 9999;
+  let open = (Math.floor((b.start_time + 5 * 3600000) / M) - 540) % 1440; if (open < 0) open += 1440;
+  const roomClose = 18 * 60 - (open + Math.round((b.end_time - b.start_time) / M));
+  if (!b.session_id && now >= b.start_time && !isOwner()) { late = 0; whyL = 'The booked time has come. Only an owner can move it later now.'; }
+  else if (roomNext < late) { late = Math.max(0, roomNext); whyL = b.machine_id + ' is booked by ' + next.customer_name + ' at ' + formatTime(next.start_time) + '.'; }
+  else if (roomClose < late) { late = Math.max(0, roomClose); whyL = 'We close at 3 AM.'; }
+  else if (late < 30) whyL = 'Already moved ' + used + ' min later. 30 min is the most.';
+  if (b.session_id && !isOwner()) { early = 0; late = 0; whyE = whyL = 'This session is running. Only an owner can shift it now.'; }
+  return { early, late, whyE, whyL };
+}
+function openShift(bookingId){
+  const b = link.bookings.find(x => x.id === bookingId);
+  if (!b) { showToast('That booking is no longer waiting', 'warn'); return; }
+  const L = shiftLimits(b), wrap = document.createElement('div');
+  const chips = (dir, max) => [5, 10, 15, 30].map(m => `<button class="paysheet-btn" style="padding:12px 4px;font-size:15px" data-go="${dir * m}" ${m > max ? 'disabled' : ''}>${m} min</button>`).join('');
+  wrap.className = 'paysheet-backdrop';
+  wrap.innerHTML = `<div class="paysheet" role="dialog" aria-modal="true">
+      <div class="paysheet-title">${escapeHtml(b.customer_name)} \u00b7 ${escapeHtml(b.machine_id)}</div>
+      <div class="paysheet-amount" style="font-size:22px">${formatTime(b.start_time)} \u2013 ${formatTime(b.end_time)}</div>
+      <div class="paysheet-break">The whole slot moves, so the customer keeps the full time.</div>
+      <div class="paysheet-q">Start early</div>
+      <div class="paysheet-row" style="grid-template-columns:repeat(4,1fr)">${chips(-1, L.early)}</div>
+      ${L.whyE ? `<div class="paysplit-hint bad" style="margin:6px 0 0">${escapeHtml(L.whyE)}</div>` : ''}
+      <div class="paysheet-q" style="margin-top:16px">Start late</div>
+      <div class="paysheet-row" style="grid-template-columns:repeat(4,1fr)">${chips(1, L.late)}</div>
+      ${L.whyL ? `<div class="paysplit-hint bad" style="margin:6px 0 0">${escapeHtml(L.whyL)}</div>` : ''}
+      <div class="paysheet-q" style="margin-top:16px">Or type the minutes</div>
+      <div class="paysheet-row" style="grid-template-columns:1.2fr 1fr 1fr">
+        <input class="input" id="shiftMin" type="number" inputmode="numeric" min="1" max="30" placeholder="e.g. 20">
+        <button class="paysheet-btn" style="padding:12px 4px;font-size:15px" data-typed="-1" ${L.early < 1 ? 'disabled' : ''}>Early</button>
+        <button class="paysheet-btn" style="padding:12px 4px;font-size:15px" data-typed="1" ${L.late < 1 ? 'disabled' : ''}>Late</button>
+      </div>
+      <button class="paysheet-cancel" data-close="1">Cancel</button>
+    </div>`;
+  document.body.appendChild(wrap);
+  requestAnimationFrame(() => wrap.classList.add('open'));
+  const close = () => wrap.remove();
+  let busy = false;
+  const go = async mins => {
+    if (busy || !mins) return;
+    const max = mins < 0 ? L.early : L.late;
+    if (Math.abs(mins) > max) { alert((mins < 0 ? 'Early' : 'Late') + ' by ' + Math.abs(mins) + ' min is not possible. The most right now is ' + max + ' min.'); return; }
+    busy = true;
+    const r = await sb.rpc('gz_shift_booking', { p_id: b.id, p_minutes: mins });
+    busy = false;
+    if (r.error) { alert(r.error.message); return; }
+    close();
+    showToast(b.customer_name + ' now starts ' + formatTime(r.data.start_time) + ' (' + Math.abs(mins) + ' min ' + (mins < 0 ? 'earlier' : 'later') + ')');
+    await loadMachinesAndBookings();
+  };
+  wrap.addEventListener('click', e => {
+    if (e.target === wrap || e.target.closest('[data-close]')) return close();
+    const g = e.target.closest('[data-go]'); if (g && !g.disabled) return go(parseInt(g.dataset.go, 10));
+    const t = e.target.closest('[data-typed]'); if (t && !t.disabled) { const n = Math.round(Number(wrap.querySelector('#shiftMin').value) || 0);
+      if (n < 1) { wrap.querySelector('#shiftMin').focus(); return; } go(parseInt(t.dataset.typed, 10) * n); }
+  });
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-shift]'); if (b) openShift(b.dataset.shift); });
 function renderMachineChoice(){
   const field = document.getElementById('machineField'), grid = document.getElementById('machineChoice'), hint = document.getElementById('machineHint');
   if (!field || !grid) return;
@@ -6368,6 +6448,7 @@ function buildSessionCard(s) {
       <div class="price-value" data-r="price-total"></div>
     </div>
     ${Number(s.advance) > 0 ? `<div class="session-advance">Booked online \u00b7 advance ${formatMoney(s.advance)} already paid</div>` : ''}
+    ${s.bookingId && isOwner() ? `<button class="btn btn-ghost btn-sm" style="margin-top:8px;position:relative;z-index:1" data-shift="${escapeHtml(s.bookingId)}">\u21c4 Shift time (owner)</button>` : ''}
     <div class="session-paid" data-r="paid"></div>
     <div class="progress"><div class="progress-fill" data-r="progress" style="width: 0%"></div></div>
     <div class="session-actions">
